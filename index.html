@@ -3,20 +3,13 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>War Sandbox — Фронт</title>
+<title>War Sandbox — Карта</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;font-family:system-ui,sans-serif;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none}
 body{background:#0f172a;color:#e2e8f0;overflow:hidden;height:100vh}
-#map{position:absolute;inset:0;background:#1a1a1a;z-index:1}
+#map{position:absolute;inset:0;background:#0f172a;z-index:1}
 .hidden{display:none!important}
-
-#menu{position:fixed;inset:0;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;background:linear-gradient(135deg,#0f172a,#1e293b);padding:20px}
-#menu h1{font-size:22px;text-align:center;margin-bottom:8px}
-#menu p{color:#94a3b8;font-size:13px;text-align:center;margin-bottom:14px;max-width:300px}
-#menu button{width:100%;max-width:280px;padding:18px;font-size:16px;font-weight:600;border-radius:12px;cursor:pointer;border:2px solid;background:#1e293b;color:#fff}
-#menu .b-ua{border-color:#3b82f6;background:#1e3a8a}
-#menu .b-ru{border-color:#ef4444;background:#7f1d1d}
 
 #loading{position:fixed;inset:0;z-index:9998;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;background:rgba(15,23,42,.98);padding:20px;text-align:center}
 #loading .big{font-size:40px}
@@ -26,6 +19,21 @@ body{background:#0f172a;color:#e2e8f0;overflow:hidden;height:100vh}
 
 #topbar{position:absolute;top:8px;left:50%;transform:translateX(-50%);background:rgba(15,23,42,.95);border:1px solid #334155;padding:8px 14px;border-radius:10px;display:flex;gap:10px;align-items:center;z-index:1000;font-size:12px;white-space:nowrap}
 #topbar button{background:#334155;color:#fff;border:none;padding:5px 10px;border-radius:6px;font-size:12px;cursor:pointer}
+
+#legend{position:absolute;top:60px;left:8px;background:rgba(15,23,42,.95);border:1px solid #334155;padding:10px;border-radius:10px;z-index:1000;font-size:11px;line-height:1.8}
+#legend .item{display:flex;align-items:center;gap:6px}
+#legend .sw{width:14px;height:14px;border-radius:3px;border:1px solid #475569}
+
+#sidePanel{position:absolute;top:60px;right:8px;width:200px;max-width:50vw;background:rgba(15,23,42,.96);border:1px solid #334155;padding:10px;border-radius:10px;z-index:1000;font-size:12px}
+#sidePanel h3{font-size:13px;margin-bottom:4px}
+#regInfo{color:#94a3b8;font-size:11px;margin-bottom:8px}
+#actions{display:flex;flex-direction:column;gap:5px}
+#actions button{padding:9px;border-radius:6px;font-size:11px;background:#1e293b;color:#e2e8f0;border:1px solid #334155;cursor:pointer;text-align:left;font-weight:600}
+#actions button:active{background:#334155}
+.btn-capture-ru{border-left:4px solid #7f1d1d!important;background:#3b1212!important}
+.btn-capture-ua{border-left:4px solid #1e3a8a!important;background:#0f1e3d!important}
+.btn-gray{border-left:4px solid #9ca3af!important}
+.btn-reset{border-left:4px solid #64748b!important}
 
 #frontTool{position:absolute;bottom:10px;left:8px;width:230px;background:rgba(15,23,42,.96);border:1px solid #334155;padding:12px;border-radius:12px;z-index:1000;font-size:12px}
 #frontTool .label{color:#cbd5e1;margin-bottom:8px;display:flex;justify-content:space-between;font-weight:600}
@@ -37,26 +45,25 @@ body{background:#0f172a;color:#e2e8f0;overflow:hidden;height:100vh}
 #frontTool button.danger{background:#7f1d1d}
 #frontTool button.danger:active{background:#991b1b}
 
-#log{position:absolute;bottom:10px;right:8px;width:180px;max-height:150px;overflow-y:auto;background:rgba(15,23,42,.95);border:1px solid #334155;padding:8px;border-radius:10px;font-size:11px;z-index:1000}
+#log{position:absolute;bottom:10px;right:8px;width:190px;max-height:160px;overflow-y:auto;background:rgba(15,23,42,.95);border:1px solid #334155;padding:8px;border-radius:10px;font-size:11px;z-index:1000}
 #logTitle{font-weight:600;margin-bottom:5px;font-size:12px}
 #logList div{padding:3px 0;border-bottom:1px solid #1e293b;color:#cbd5e1}
 
-#hint{position:absolute;top:70px;left:50%;transform:translateX(-50%);background:rgba(250,204,21,.95);color:#111;padding:10px 16px;border-radius:10px;font-size:13px;font-weight:600;z-index:2000;max-width:80vw;text-align:center}
-.leaflet-container{cursor:crosshair}
+#hint{position:absolute;top:110px;left:50%;transform:translateX(-50%);background:rgba(250,204,21,.95);color:#111;padding:10px 16px;border-radius:10px;font-size:13px;font-weight:600;z-index:2000;max-width:80vw;text-align:center}
+
+#toast{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);padding:16px 24px;border-radius:12px;font-size:15px;font-weight:700;text-align:center;z-index:3000;max-width:80vw;box-shadow:0 8px 30px rgba(0,0,0,.6);white-space:pre-line}
+#toast.blue{background:rgba(30,58,138,.98);color:#fff;border:2px solid #3b82f6}
+#toast.red{background:rgba(127,29,29,.98);color:#fff;border:2px solid #ef4444}
+#toast.gray{background:rgba(156,163,175,.98);color:#111}
+
+.leaflet-interactive{cursor:pointer}
 .leaflet-container.drawing{cursor:crosshair!important}
 .leaflet-container.drawing .leaflet-interactive{pointer-events:none}
 </style>
 </head>
 <body>
 
-<div id="menu">
-  <h1>⚔️ Военная песочница</h1>
-  <p>Выбери сторону. Рисуй фронт кистью — вокруг появится серая зона.</p>
-  <button class="b-ua" id="btnPickUA">🇺🇦 Играть за Украину</button>
-  <button class="b-ru" id="btnPickRU">🇷🇺 Играть за Россию</button>
-</div>
-
-<div id="loading" class="hidden">
+<div id="loading">
   <div class="big">⏳</div>
   <div id="loadingText">Загрузка карты...</div>
 </div>
@@ -65,8 +72,22 @@ body{background:#0f172a;color:#e2e8f0;overflow:hidden;height:100vh}
   <div id="map"></div>
 
   <div id="topbar">
-    <span id="sideLabel">—</span>
-    <button onclick="location.reload()">↩ Меню</button>
+    <span>⚔️ Военная карта</span>
+    <button onclick="location.reload()">↩ Перезагрузить</button>
+  </div>
+
+  <div id="legend">
+    <div class="item"><div class="sw" style="background:#3b82f6"></div>Украина</div>
+    <div class="item"><div class="sw" style="background:#ef4444"></div>РФ / Беларусь</div>
+    <div class="item"><div class="sw" style="background:#7f1d1d"></div>Укр. обл. под РФ</div>
+    <div class="item"><div class="sw" style="background:#1e3a8a"></div>РФ/Бел. обл. под УКР</div>
+    <div class="item"><div class="sw" style="background:#9ca3af"></div>Серая зона</div>
+  </div>
+
+  <div id="sidePanel">
+    <h3 id="regName">Кликни область</h3>
+    <p id="regInfo">—</p>
+    <div id="actions" class="hidden"></div>
   </div>
 
   <div id="frontTool">
@@ -87,6 +108,7 @@ body{background:#0f172a;color:#e2e8f0;overflow:hidden;height:100vh}
   </div>
 
   <div id="hint" class="hidden"></div>
+  <div id="toast" class="hidden"></div>
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -95,90 +117,292 @@ body{background:#0f172a;color:#e2e8f0;overflow:hidden;height:100vh}
 (function() {
   'use strict';
 
-  var map, playerSide = 'ua';
+  var map;
+  var regions = {};
+  var countries = {};
+  var currentRegionId = null;
+
+  // Рисование фронта
   var radiusKm = 5;
   var drawMode = false;
   var currentPoints = [];
   var currentPreview = null;
-  var fronts = []; // {line, buffer, points}
+  var fronts = [];
 
-  var SIDE_COLORS = { ua: '#3b82f6', ru: '#ef4444' };
-  var SIDE_NAMES = { ua: 'Украина', ru: 'Россия' };
+  // Цвета
+  var COLORS = {
+    ukr_base: '#3b82f6',     // Украина — синяя
+    ru_base:  '#ef4444',     // РФ / Беларусь — красная
+    ukr_occupied: '#7f1d1d', // Укр. обл. под РФ — тёмно-красный
+    ru_occupied:  '#1e3a8a', // РФ/Бел. обл. под УКР — тёмно-синий
+    gray: '#9ca3af'
+  };
 
-  // ---- Меню ----
-  function pickSide(side) {
-    playerSide = side;
-    document.getElementById('menu').style.display = 'none';
-    document.getElementById('game').classList.remove('hidden');
-    document.getElementById('loading').classList.remove('hidden');
-    document.getElementById('sideLabel').textContent = 'Ты: ' + SIDE_NAMES[side];
-    initMap();
-  }
-
-  document.getElementById('btnPickUA').addEventListener('click', function(){ pickSide('ua'); });
-  document.getElementById('btnPickRU').addEventListener('click', function(){ pickSide('ru'); });
+  var COUNTRY_NAMES = { UKR: 'Украина', BLR: 'Беларусь', RUS: 'Россия' };
 
   // ---- Карта ----
   function initMap() {
     map = L.map('map', {
       zoomControl: false,
       attributionControl: false,
-      preferCanvas: true
+      preferCanvas: false
     }).setView([49, 32], 6);
 
     L.control.zoom({ position: 'topright' }).addTo(map);
     L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 12 }).addTo(map);
 
-    // Заглушка — данные не грузим (нет закраски областей)
-    setTimeout(function() {
-      document.getElementById('loading').classList.add('hidden');
-      log('✅ Карта готова');
-      log('Жми ✏️ Начать рисовать');
-      showHint('Тапни ✏️ Начать рисовать, потом веди пальцем по карте');
-    }, 500);
-
-    // ---- Ползунок радиуса ----
+    // Ползунок
     var slider = document.getElementById('radiusInput');
     slider.addEventListener('input', function() {
       radiusKm = parseInt(slider.value);
       document.getElementById('radiusVal').textContent = radiusKm + ' км';
-      // Обновить все существующие буферы
       fronts.forEach(function(f) { rebuildBuffer(f); });
     });
 
-    // ---- Кнопки ----
     document.getElementById('drawBtn').addEventListener('click', toggleDraw);
     document.getElementById('undoBtn').addEventListener('click', undoLast);
     document.getElementById('clearBtn').addEventListener('click', clearAll);
 
-    // ---- Рисование ----
+    // Рисование
     map.on('mousedown', onDrawStart);
     map.on('mousemove', onDrawMove);
     map.on('mouseup', onDrawEnd);
-    // Touch
     map.on('touchstart', onDrawStart);
     map.on('touchmove', onDrawMove);
     map.on('touchend', onDrawEnd);
   }
 
-  // ---- UI ----
+  // ---- Загрузка границ ----
+  function loadData() {
+    var setText = function(t) { document.getElementById('loadingText').textContent = t; };
+    setText('Скачиваем границы областей...');
+    var url = 'https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_50m_admin_1_states_provinces.geojson';
+
+    fetch(url).then(function(r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.json();
+    }).then(function(data) {
+      setText('Фильтруем регионы...');
+      var wanted = ['UKR','BLR','RUS'];
+      var features = data.features.filter(function(f) {
+        return wanted.indexOf(f.properties.adm0_a3) !== -1;
+      });
+      // РФ — только европейская часть
+      features = features.filter(function(f) {
+        if (f.properties.adm0_a3 !== 'RUS') return true;
+        try { var b = turf.bbox(f); return b[0] < 60; } catch(e) { return false; }
+      });
+
+      setText('Рисуем ' + features.length + ' областей...');
+      buildRegions(features);
+
+      document.getElementById('loading').classList.add('hidden');
+      document.getElementById('game').classList.remove('hidden');
+      log('✅ Карта готова. Областей: ' + features.length);
+      log('Клик по области — действия');
+    }).catch(function(e) {
+      setText('❌ Ошибка: ' + e.message);
+      console.error(e);
+    });
+  }
+
+  // ---- Области ----
+  function buildRegions(features) {
+    features.forEach(function(f, i) {
+      var iso = f.properties.adm0_a3;
+      var name = f.properties.name || ('Область ' + i);
+      var id = iso + '_' + i;
+
+      // Начальный владелец = страна (своя территория)
+      var owner = iso === 'UKR' ? 'ukr' : 'ru'; // UKR -> ukr, RUS/BLR -> ru
+
+      var layer = L.geoJSON(f, {
+        style: styleFor(owner)
+      }).addTo(map);
+
+      layer.on('click', function(e) {
+        L.DomEvent.stopPropagation(e);
+        selectRegion(id);
+      });
+
+      regions[id] = {
+        feature: f, layer: layer, name: name,
+        country: iso, owner: owner
+      };
+
+      if (!countries[iso]) countries[iso] = { name: COUNTRY_NAMES[iso], total: 0 };
+      countries[iso].total++;
+    });
+    drawBorders(features);
+  }
+
+  function styleFor(owner) {
+    var fill = COLORS.gray;
+    if (owner === 'ukr') fill = COLORS.ukr_base;
+    else if (owner === 'ru') fill = COLORS.ru_base;
+    else if (owner === 'ukr_occupied') fill = COLORS.ukr_occupied;
+    else if (owner === 'ru_occupied') fill = COLORS.ru_occupied;
+    else if (owner === 'gray') fill = COLORS.gray;
+
+    return {
+      color: '#0f172a',
+      weight: 0.8,
+      fillColor: fill,
+      fillOpacity: 0.75
+    };
+  }
+
+  function drawBorders(features) {
+    ['UKR','BLR','RUS'].forEach(function(iso) {
+      var cf = features.filter(function(f) { return f.properties.adm0_a3 === iso; });
+      if (!cf.length) return;
+      var merged = cf[0];
+      for (var i = 1; i < cf.length; i++) {
+        try { merged = turf.union(merged, cf[i]); } catch(e) {}
+      }
+      L.geoJSON(merged, {
+        style: { color: '#f8fafc', weight: 2.5, fillOpacity: 0, opacity: 0.9 },
+        interactive: false
+      }).addTo(map);
+    });
+  }
+
+  // ---- Выбор области ----
+  function selectRegion(id) {
+    currentRegionId = id;
+    var r = regions[id];
+    document.getElementById('regName').textContent = r.name;
+    document.getElementById('regInfo').textContent =
+      countries[r.country].name + ' · ' + ownerLabel(r);
+
+    var actions = document.getElementById('actions');
+    actions.innerHTML = '';
+    actions.classList.remove('hidden');
+
+    // Кнопка захвата РФ — только если область НЕ РФ (не своя для РФ)
+    if (r.country !== 'RUS') {
+      var btnRU = document.createElement('button');
+      btnRU.className = 'btn-capture-ru';
+      btnRU.textContent = '🔴 Захват РФ';
+      btnRU.addEventListener('click', function(){ setOwner(id, 'ru_occupied'); });
+      actions.appendChild(btnRU);
+    }
+
+    // Кнопка захвата Украины — только если область НЕ Украина
+    if (r.country !== 'UKR') {
+      var btnUA = document.createElement('button');
+      btnUA.className = 'btn-capture-ua';
+      btnUA.textContent = '🔵 Захват Украины';
+      btnUA.addEventListener('click', function(){ setOwner(id, 'ukr_occupied'); });
+      actions.appendChild(btnUA);
+    }
+
+    // Серая зона — для любой
+    var btnGray = document.createElement('button');
+    btnGray.className = 'btn-gray';
+    btnGray.textContent = '⬜ Серая зона';
+    btnGray.addEventListener('click', function(){ setOwner(id, 'gray'); });
+    actions.appendChild(btnGray);
+
+    // Вернуть к исходной стране
+    var btnReset = document.createElement('button');
+    btnReset.className = 'btn-reset';
+    btnReset.textContent = '🏳 Вернуть исходной';
+    btnReset.addEventListener('click', function(){
+      setOwner(id, r.country === 'UKR' ? 'ukr' : 'ru');
+    });
+    actions.appendChild(btnReset);
+  }
+
+  function ownerLabel(r) {
+    if (r.owner === 'ukr') return '🔵 Украина';
+    if (r.owner === 'ru') return '🔴 РФ/Беларусь';
+    if (r.owner === 'ukr_occupied') return '🟥 Оккупировано РФ';
+    if (r.owner === 'ru_occupied') return '🟦 Оккупировано Украиной';
+    if (r.owner === 'gray') return '⬜ Серая зона';
+    return '—';
+  }
+
+  function setOwner(id, newOwner) {
+    var r = regions[id];
+    var oldOwner = r.owner;
+
+    // Защита: своя страна себя не оккупирует
+    if (newOwner === 'ru_occupied' && r.country === 'RUS') {
+      showHint('❌ РФ не оккупирует свои территории');
+      return;
+    }
+    if (newOwner === 'ru_occupied' && r.country === 'BLR') {
+      showHint('❌ РФ не оккупирует союзника — Беларусь');
+      return;
+    }
+    if (newOwner === 'ukr_occupied' && r.country === 'UKR') {
+      showHint('❌ Украина не оккупирует свои территории');
+      return;
+    }
+
+    r.owner = newOwner;
+    r.layer.setStyle(styleFor(newOwner));
+
+    var label = ownerLabel(r);
+    log(r.name + ' → ' + label);
+
+    // Проверка полного захвата страны
+    checkCountryCapture(r.country);
+
+    // Обновить панель
+    selectRegion(id);
+  }
+
+  function checkCountryCapture(code) {
+    var list = Object.keys(regions).map(function(k){ return regions[k]; })
+      .filter(function(r){ return r.country === code; });
+    if (!list.length) return;
+
+    var owners = {};
+    list.forEach(function(r){ owners[r.owner] = true; });
+    var keys = Object.keys(owners);
+    if (keys.length !== 1) return;
+
+    var winner = keys[0];
+    var cn = countries[code].name;
+
+    if (winner === 'ru_occupied') {
+      showToast('🏴 ' + cn.toUpperCase() + ' ЗАХВАЧЕНА РФ!\nВсе области оккупированы', 'red');
+      log('🏴 ' + cn + ' полностью под РФ');
+    } else if (winner === 'ukr_occupied') {
+      showToast('🏴 ' + cn.toUpperCase() + ' ЗАХВАЧЕНА УКРАИНОЙ!\nВсе области оккупированы', 'blue');
+      log('🏴 ' + cn + ' полностью под Украиной');
+    }
+  }
+
+  // ---- UI помощники ----
+  var toastTimer;
+  function showToast(text, cls) {
+    var el = document.getElementById('toast');
+    el.textContent = text;
+    el.className = cls;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function(){ el.className = 'hidden'; }, 3500);
+  }
+
   function showHint(text) {
     var h = document.getElementById('hint');
     h.textContent = text;
     h.classList.remove('hidden');
-    setTimeout(function(){ h.classList.add('hidden'); }, 3500);
+    setTimeout(function(){ h.classList.add('hidden'); }, 3000);
   }
 
   function log(text) {
     var list = document.getElementById('logList');
     var el = document.createElement('div');
-    var t = new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+    var t = new Date().toLocaleTimeString('ru-RU', { hour:'2-digit', minute:'2-digit' });
     el.textContent = '[' + t + '] ' + text;
     list.insertBefore(el, list.firstChild);
     if (list.children.length > 40) list.removeChild(list.lastChild);
   }
 
-  // ---- Режим рисования ----
+  // ---- Рисование фронта ----
   function toggleDraw() {
     drawMode = !drawMode;
     var btn = document.getElementById('drawBtn');
@@ -188,7 +412,6 @@ body{background:#0f172a;color:#e2e8f0;overflow:hidden;height:100vh}
       btn.classList.add('active');
       container.classList.add('drawing');
       map.dragging.disable();
-      log('✏️ Рисование: веди пальцем по карте');
       showHint('Веди пальцем — рисуй линию фронта');
     } else {
       btn.textContent = '✏️ Начать рисовать';
@@ -196,102 +419,61 @@ body{background:#0f172a;color:#e2e8f0;overflow:hidden;height:100vh}
       container.classList.remove('drawing');
       map.dragging.enable();
       cancelPreview();
-      log('✏️ Рисование выключено');
     }
   }
 
   function cancelPreview() {
-    if (currentPreview) {
-      map.removeLayer(currentPreview);
-      currentPreview = null;
-    }
+    if (currentPreview) { map.removeLayer(currentPreview); currentPreview = null; }
     currentPoints = [];
   }
 
-  // ---- Обработчики рисования ----
   function onDrawStart(e) {
     if (!drawMode) return;
     if (e.originalEvent && e.originalEvent.touches && e.originalEvent.touches.length > 1) return;
     currentPoints = [e.latlng];
-    currentPreview = L.polyline(currentPoints, {
-      color: '#facc15', weight: 4, opacity: 1
-    }).addTo(map);
+    currentPreview = L.polyline(currentPoints, { color:'#facc15', weight:4, opacity:1 }).addTo(map);
   }
 
   function onDrawMove(e) {
     if (!drawMode || !currentPreview) return;
     currentPoints.push(e.latlng);
     currentPreview.setLatLngs(currentPoints);
-    // Не даём карте двигаться
-    if (e.originalEvent && e.originalEvent.preventDefault) {
-      e.originalEvent.preventDefault();
-    }
+    if (e.originalEvent && e.originalEvent.preventDefault) e.originalEvent.preventDefault();
   }
 
   function onDrawEnd() {
     if (!drawMode || !currentPreview) return;
-    if (currentPoints.length < 2) {
-      cancelPreview();
-      return;
-    }
-    // Убрать превью
+    if (currentPoints.length < 2) { cancelPreview(); return; }
     map.removeLayer(currentPreview);
     currentPreview = null;
-
-    // Создать финальный фронт
-    var points = currentPoints.slice();
+    var pts = currentPoints.slice();
     currentPoints = [];
-    createFront(points);
+    createFront(pts);
   }
 
-  // ---- Создание фронта ----
   function createFront(points) {
-    var line = L.polyline(points, {
-      color: '#facc15',
-      weight: 4,
-      opacity: 1
-    }).addTo(map);
-
+    var line = L.polyline(points, { color:'#facc15', weight:4, opacity:1 }).addTo(map);
     var front = { line: line, buffer: null, points: points };
     fronts.push(front);
     rebuildBuffer(front);
-
-    log('✏️ Фронт нарисован (' + points.length + ' точек, радиус ' + radiusKm + ' км)');
+    log('✏️ Фронт (' + radiusKm + ' км)');
   }
 
   function rebuildBuffer(front) {
-    // Убрать старый буфер
-    if (front.buffer) {
-      map.removeLayer(front.buffer);
-      front.buffer = null;
-    }
-
+    if (front.buffer) { map.removeLayer(front.buffer); front.buffer = null; }
     try {
-      var lineGeoJSON = front.line.toGeoJSON();
-      // Буфер шириной radiusKm
-      var buffered = turf.buffer(lineGeoJSON, radiusKm, { units: 'kilometers' });
+      var g = front.line.toGeoJSON();
+      var buffered = turf.buffer(g, radiusKm, { units: 'kilometers' });
       if (!buffered) return;
-
       front.buffer = L.geoJSON(buffered, {
-        style: {
-          color: '#9ca3af',
-          weight: 1,
-          fillColor: '#9ca3af',
-          fillOpacity: 0.3,
-          dashArray: '4,4'
-        },
+        style: { color:'#9ca3af', weight:1, fillColor:'#9ca3af', fillOpacity:0.3, dashArray:'4,4' },
         interactive: false
       }).addTo(map);
-    } catch (e) {
-      console.error('Buffer error:', e);
-    }
+    } catch(e) { console.error(e); }
   }
 
   function undoLast() {
-    if (!fronts.length) {
-      log('Нет фронтов для удаления');
-      return;
-    }
+    if (!fronts.length) { log('Нет фронтов'); return; }
     var last = fronts.pop();
     if (last.line) map.removeLayer(last.line);
     if (last.buffer) map.removeLayer(last.buffer);
@@ -299,13 +481,17 @@ body{background:#0f172a;color:#e2e8f0;overflow:hidden;height:100vh}
   }
 
   function clearAll() {
-    fronts.forEach(function(f) {
+    fronts.forEach(function(f){
       if (f.line) map.removeLayer(f.line);
       if (f.buffer) map.removeLayer(f.buffer);
     });
     fronts = [];
     log('🗑 Все фронты убраны');
   }
+
+  // ---- Старт ----
+  initMap();
+  loadData();
 
 })();
 </script>
