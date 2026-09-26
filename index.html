@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>War Sandbox</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; font-family: system-ui, sans-serif; }
+    body { background: #0f172a; color: #e2e8f0; overflow: hidden; }
+    #map { position: absolute; inset: 0; background: #1a1a1a; }
+    #loading {
+      position: absolute; top: 50%; left: 50%;
+      transform: translate(-50%,-50%);
+      background: rgba(15,23,42,0.95);
+      padding: 20px 30px; border-radius: 12px;
+      z-index: 9999; font-size: 16px;
+      border: 1px solid #334155;
+    }
+    #loading.hidden { display: none; }
+    #topbar {
+      position: absolute; top: 10px; left: 50%;
+      transform: translateX(-50%);
+      background: rgba(15,23,42,0.95);
+      padding: 8px 16px; border-radius: 10px;
+      display: flex; gap: 12px; align-items: center;
+      z-index: 1000; font-size: 13px;
+      border: 1px solid #334155;
+    }
+    #topbar button {
+      background: #334155; color: #fff;
+      border: none; padding: 5px 12px;
+      border-radius: 6px; font-size: 12px;
+      cursor: pointer;
+    }
+    #sidePanel {
+      position: absolute; top: 60px; left: 10px;
+      width: 210px;
+      background: rgba(15,23,42,0.95);
+      padding: 12px; border-radius: 10px;
+      z-index: 1000; font-size: 13px;
+      border: 1px solid #334155;
+    }
+    #sidePanel h3 { font-size: 14px; margin-bottom: 6px; }
+    #regInfo { color: #94a3b8; margin-bottom: 8px; font-size: 12px; }
+    #regActions { display: flex; flex-direction: column; gap: 6px; }
+    #regActions.hidden { display: none; }
+    #regActions button {
+      padding: 8px 10px; border: none; border-radius: 6px;
+      background: #1e293b; color: #e2e8f0;
+      font-size: 12px; cursor: pointer;
+      text-align: left;
+      border: 1px solid #334155;
+    }
+    #regActions button:active { opacity: 0.7; }
+    .btn-p1 { border-left: 4px solid #3b82f6 !important; }
+    .btn-p2 { border-left: 4px solid #ef4444 !important; }
+    .btn-gray { border-left: 4px solid #9ca3af !important; }
+    .btn-neutral { border-left: 4px solid #475569 !important; }
+    #log {
+      position: absolute; bottom: 10px; right: 10px;
+      width: 260px; max-height: 200px;
+      background: rgba(15,23,42,0.95);
+      border: 1px solid #334155;
+      border-radius: 10px; padding: 10px;
+      z-index: 1000; font-size: 12px;
+      overflow-y: auto;
+    }
+    #logTitle { font-weight: bold; margin-bottom: 6px; font-size: 13px; }
+    #logList div { padding: 3px 0; border-bottom: 1px solid #1e293b; color: #cbd5e1; }
+    #toast {
+      position: absolute; top: 80px; left: 50%;
+      transform: translateX(-50%);
+      background: rgba(59,130,246,0.95);
+      color: #fff; padding: 16px 28px;
+      border-radius: 12px; font-size: 15px;
+      font-weight: bold; text-align: center;
+      z-index: 2000;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.5);
+    }
+    #toast.hidden { display: none; }
+    #toast.p2 { background: rgba(239,68,68,0.95); }
+    #toast.gray { background: rgba(156,163,175,0.95); color: #111; }
+    .leaflet-interactive { cursor: pointer; }
+  </style>
+</head>
+<body>
+
+  <div id="loading">⏳ Загрузка карты...</div>
+  <div id="map"></div>
+  <div id="topbar">
+    <span>🧪 Песочница</span>
+    <button onclick="resetAll()">↩ Сброс</button>
+  </div>
+  <div id="sidePanel">
+    <h3 id="regName">Кликни область</h3>
+    <p id="regInfo">—</p>
+    <div id="regActions" class="hidden">
+      <button class="btn-p1" onclick="setOwner('p1')">🟦 Игрок 1</button>
+      <button class="btn-p2" onclick="setOwner('p2')">🟥 Игрок 2</button>
+      <button class="btn-gray" onclick="setOwner('gray')">⬜ Серая зона</button>
+      <button class="btn-neutral" onclick="setOwner(null)">⬛ Нейтрал</button>
+    </div>
+  </div>
+  <div id="log">
+    <div id="logTitle">📜 События</div>
+    <div id="logList"></div>
+  </div>
+  <div id="toast" class="hidden"></div>
+  
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
+  <script>
+    let map;
+    let currentRegion = null;
+    const regions = {};
+    const countries = {};
+
+    const COLORS = {
+      p1: '#3b82f6',
+      p2: '#ef4444',
+      gray: '#9ca3af',
+      neutral: '#1e293b'
+    };
+
+    const COUNTRY_NAMES = {
+      UKR: 'Украина',
+      BLR: 'Беларусь',
+      RUS: 'Россия (европейская часть)'
+    };
+
+    async function loadData() {
+      try {
+        const url = 'https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_50m_admin_1_states_provinces.geojson';
+        const res = await fetch(url);
+        const data = await res.json();
+        const wanted = ['UKR','BLR','RUS'];
+        let features = data.features.filter(f => wanted.includes(f.properties.adm0_a3));
+        features = features.filter(f => {
+          if (f.properties.adm0_a3 !== 'RUS') return true;
+          try { const b = turf.bbox(f); return b[0] < 60; } catch(e) { return false; }
+        });
+        return features;
+      } catch (e) {
+        console.error(e);
+        document.getElementById('loading').textContent = '❌ Ошибка загрузки: ' + e.message;
+        return [];
+      }
+    }
+
+    function initMap() {
+      map = L.map('map', { zoomControl: true, attributionControl: false }).setView([50, 30], 5);
+      L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 12 }).addTo(map);
+    }
+
+    function buildRegions(features) {
+      features.forEach((f, i) => {
+        const iso = f.properties.adm0_a3;
+        const name = f.properties.name || ('Область ' + i);
+        const id = iso + '_' + i;
+        const layer = L.geoJSON(f, {
+          style: { color: '#cbd5e1', weight: 0.5, fillColor: COLORS.neutral, fillOpacity: 0.35 }
+        }).addTo(map);
+        layer.on('click', function(e) {
+          L.DomEvent.stopPropagation(e);
+          selectRegion(id);
+        });
+        regions[id] = { layer: layer, name: name, country: iso, owner: null, status: 'neutral' };
+        if (!countries[iso]) countries[iso] = { name: COUNTRY_NAMES[iso] || iso, total: 0 };
+        countries[iso].total++;
+      });
+      drawCountryBorders(features);
+    }
+
+    function drawCountryBorders(features) {
+      ['UKR','BLR','RUS'].forEach(iso => {
+        const cf = features.filter(f => f.properties.adm0_a3 === iso);
+        if (!cf.length) return;
+        let merged = cf[0];
+        for (let i = 1; i < cf.length; i++) {
+          try { merged = turf.union(merged, cf[i]); } catch(e) {}
+        }
+        L.geoJSON(merged, {
+          style: { color: '#f8fafc', weight: 2.5, fillOpacity: 0, opacity: 0.9 }
+        }).addTo(map);
+      });
+    }
+
+    function selectRegion(id) {
+      currentRegion = id;
+      const r = regions[id];
+      document.getElementById('regName').textContent = r.name;
+      document.getElementById('regInfo').textContent = countries[r.country].name + ' · ' + statusLabel(r);
+      document.getElementById('regActions').classList.remove('hidden');
+    }
+
+    function statusLabel(r) {
+      if (r.owner === 'p1') return '🟦 Игрок 1';
+      if (r.owner === 'p2') return '🟥 Игрок 2';
+      if (r.owner === 'gray') return '⬜ Серая зона';
+      return '⬛ Нейтрал';
+    }
+
+    function setOwner(owner) {
+      if (!currentRegion) return;
+      const r = regions[currentRegion];
+      r.owner = owner;
+      r.status = owner === null ? 'neutral' : (owner === 'gray' ? 'gray' : 'controlled');
+      updateRegionColor(r);
+      const cn = countries[r.country].name;
+      if (owner === null) log('⬛ ' + r.name + ' (' + cn + ') → нейтрал');
+      else if (owner === 'gray') log('⬜ ' + r.name + ' (' + cn + ') вошло в серую зону');
+      else log('⚔️ ' + r.name + ' (' + cn + ') → ' + (owner === 'p1' ? 'Игрок 1' : 'Игрок 2'));
+      checkCountryCapture(r.country);
+      selectRegion(currentRegion);
+    }
+
+    function updateRegionColor(r) {
+      const color = r.owner ? COLORS[r.owner] : COLORS.neutral;
+      r.layer.setStyle({ fillColor: color });
+    }
+
+    function checkCountryCapture(countryCode) {
+      const list = Object.values(regions).filter(r => r.country === countryCode);
+      if (!list.length) return;
+      const owners = new Set(list.map(r => r.owner));
+      if (owners.size !== 1) return;
+      const winner = owners.values().next().value;
+      if (winner === null || winner === 'gray') return;
+      const cn = countries[countryCode].name;
+      if (winner === 'p1') {
+        showToast('🏴 ' + cn.toUpperCase() + ' ЗАХВАЧЕНА!\nИгрок 1 контролирует 100%', 'p1');
+        log('🏴 ' + cn + ' полностью захвачена игроком 1!');
+      } else if (winner === 'p2') {
+        showToast('🏴 ' + cn.toUpperCase() + ' ЗАХВАЧЕНА!\nИгрок 2 контролирует 100%', 'p2');
+        log('🏴 ' + cn + ' полностью захвачена игроком 2!');
+      }
+    }
+
+    let toastTimer;
+    function showToast(text, type) {
+      const el = document.getElementById('toast');
+      el.textContent = text;
+      el.className = '';
+      if (type === 'p2') el.classList.add('p2');
+      if (type === 'gray') el.classList.add('gray');
+      el.classList.remove('hidden');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => el.classList.add('hidden'), 3500);
+    }
+
+    function log(text) {
+      const list = document.getElementById('logList');
+      const el = document.createElement('div');
+      const time = new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+      el.textContent = '[' + time + '] ' + text;
+      list.prepend(el);
+      if (list.children.length > 40) list.lastChild.remove();
+    }
+
+    function resetAll() {
+      Object.values(regions).forEach(r => {
+        r.owner = null;
+        r.status = 'neutral';
+        updateRegionColor(r);
+      });
+      log('↩ Все территории сброшены');
+      showToast('↩ Сброс', 'gray');
+    }
+
+    (async function init() {
+      initMap();
+      const features = await loadData();
+      if (!features.length) return;
+      buildRegions(features);
+      document.getElementById('loading').classList.add('hidden');
+      log('🧪 Песочница готова. Кликай по областям.');
+    })();
+  </script>
+</body>
+</html>
