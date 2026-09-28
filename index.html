@@ -79,8 +79,9 @@ body{background:#0f172a;color:#e2e8f0;overflow:hidden;height:100vh}
   var currentPreview = null;
   var startMarker = null;
   var painted = [];
+  var countryPolys = [];  // массив turf-фич стран
   var GRAY_RADIUS_KM = 2;
-  var STORAGE_KEY = 'war_sandbox_paints_v2';
+  var STORAGE_KEY = 'war_sandbox_paints_v3';
 
   function init(){
     map = L.map('map', {zoomControl:true, attributionControl:false}).setView([50, 34], 5);
@@ -108,7 +109,6 @@ body{background:#0f172a;color:#e2e8f0;overflow:hidden;height:100vh}
       document.getElementById('openBtn').classList.add('hidden');
     });
 
-    // События через DOM напрямую (обход проблемы с touchmove)
     var container = map.getContainer();
     container.addEventListener('touchstart', handleStart, {passive:false});
     container.addEventListener('touchmove', handleMove, {passive:false});
@@ -122,14 +122,14 @@ body{background:#0f172a;color:#e2e8f0;overflow:hidden;height:100vh}
     loadData();
   }
 
-  // ===== Сохранение =====
+  // ===== Save/Load =====
   function save() {
     try {
       var data = painted.map(function(p){
         return { pts: p.pts, color: p.color };
       });
       localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-    } catch(e) { console.warn('save', e); }
+    } catch(e) {}
   }
   function load() {
     try {
@@ -138,10 +138,10 @@ body{background:#0f172a;color:#e2e8f0;overflow:hidden;height:100vh}
       var data = JSON.parse(raw);
       if (!Array.isArray(data)) return;
       data.forEach(function(item){ addPolygon(item.pts, item.color, false); });
-    } catch(e) { console.warn('load', e); }
+    } catch(e) {}
   }
 
-  // ===== Карта =====
+  // ===== Загрузка карты =====
   function loadData(){
     document.getElementById('load').textContent = 'Загрузка...';
     fetch('https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_110m_admin_0_countries.geojson')
@@ -155,6 +155,7 @@ body{background:#0f172a;color:#e2e8f0;overflow:hidden;height:100vh}
         });
         if (!ukr || !rus) { document.getElementById('load').textContent = 'Не нашёл страны'; return; }
 
+        // Базовые слои
         L.geoJSON(rus, {style:{color:'#0f172a',weight:1,fillColor:'#ef4444',fillOpacity:0.85}}).addTo(map);
         L.geoJSON(ukr, {style:{color:'#0f172a',weight:1,fillColor:'#3b82f6',fillOpacity:0.85}}).addTo(map);
 
@@ -164,6 +165,9 @@ body{background:#0f172a;color:#e2e8f0;overflow:hidden;height:100vh}
           [45.7,32.5],[46.0,33.0]
         ];
         L.polygon(crimea, {color:'#0f172a',weight:1,fillColor:'#7f1d1d',fillOpacity:0.95}).addTo(map);
+
+        // Сохраняем turfy-фичи стран для клиппинга
+        countryPolys = [ukr, rus];
 
         try { map.fitBounds(L.geoJSON(ukr).getBounds(), {padding:[20,20]}); } catch(e){}
 
@@ -179,12 +183,11 @@ body{background:#0f172a;color:#e2e8f0;overflow:hidden;height:100vh}
   function toggleDraw(){
     drawMode = !drawMode;
     var btn = document.getElementById('drawBtn');
-    var c = map.getContainer();
     if (drawMode) {
       btn.textContent = '✖ Стоп';
       btn.classList.add('active');
       map.dragging.disable();
-      showHint('Веди пальцем — рисуй линию');
+      showHint('Обведи территорию — линия замкнётся сама');
     } else {
       btn.textContent = '✏️ Включить кисть';
       btn.classList.remove('active');
@@ -214,7 +217,6 @@ body{background:#0f172a;color:#e2e8f0;overflow:hidden;height:100vh}
     var ll = getLatLng(e);
     currentPoints = [ll];
 
-    // Точка старта — карандаш
     startMarker = L.marker(ll, {
       icon: L.divIcon({
         className: '',
@@ -225,9 +227,11 @@ body{background:#0f172a;color:#e2e8f0;overflow:hidden;height:100vh}
       interactive: false
     }).addTo(map);
 
-    // Чёрная временная линия
-    currentPreview = L.polyline(currentPoints, {
-      color: '#000', weight: 4, opacity: 0.9
+    // Замкнутая превьюшка (линия туда-обратно)
+    currentPreview = L.polygon(currentPoints, {
+      color: '#000', weight: 3, opacity: 0.9,
+      fillColor: currentColor, fillOpacity: 0.2,
+      dashArray: '5,5'
     }).addTo(map);
   }
 
@@ -255,37 +259,70 @@ body{background:#0f172a;color:#e2e8f0;overflow:hidden;height:100vh}
     addPolygon(arr, currentColor, true);
   }
 
-  // ===== Полигон + серая зона =====
+  // ===== Полигон с обрезкой по границам стран =====
   function addPolygon(pts, color, shouldSave) {
-    var latlngs = pts.map(function(p){ return L.latLng(p[0], p[1]); });
+    // Формируем GeoJSON-полигон из точек
+    var coords = pts.map(function(p){ return [p[1], p[0]]; });
+    if (coords[0][0] !== coords[coords.length-1][0] || coords[0][1] !== coords[coords.length-1][1]) {
+      coords.push(coords[0]); // замкнуть
+    }
+    var drawnFeature = {
+      type: 'Feature',
+      geometry: { type: 'Polygon', coordinates: [coords] },
+      properties: {}
+    };
 
-    var polygon = L.polygon(latlngs, {
-      color: color, weight: 2, fillColor: color, fillOpacity: 0.75
-    }).addTo(map);
+    // Обрезаем по каждой стране
+    var pieces = [];
+    countryPolys.forEach(function(country){
+      try {
+        var clipped = turf.intersect(drawnFeature, country);
+        if (clipped) pieces.push(clipped);
+      } catch(e) { console.warn('intersect err', e); }
+    });
 
-    var grayRing = null;
-    try {
-      var polyGeo = polygon.toGeoJSON();
-      var buffered = turf.buffer(polyGeo, GRAY_RADIUS_KM, {units:'kilometers'});
-      var ring = turf.difference(buffered, polyGeo);
-      if (ring) {
-        grayRing = L.geoJSON(ring, {
-          style:{color:'#9ca3af',weight:1,fillColor:'#9ca3af',fillOpacity:0.5,dashArray:'3,3'},
-          interactive:false
-        }).addTo(map);
-      }
-    } catch(err){}
+    // Если ни с чем не пересеклось — рисуем как есть (fallback)
+    if (!pieces.length) {
+      pieces.push(drawnFeature);
+    }
 
-    painted.push({polygon: polygon, gray: grayRing, pts: pts, color: color});
+    pieces.forEach(function(piece){
+      // Заливка (клип)
+      var polyLayer = L.geoJSON(piece, {
+        style: { color: color, weight: 2, fillColor: color, fillOpacity: 0.75 }
+      }).addTo(map);
+
+      // Серая зона вокруг (по границе страны тоже)
+      var grayLayer = null;
+      try {
+        var buffered = turf.buffer(piece, GRAY_RADIUS_KM, {units:'kilometers'});
+        var ring = turf.difference(buffered, piece);
+        if (ring) {
+          grayLayer = L.geoJSON(ring, {
+            style:{color:'#9ca3af',weight:1,fillColor:'#9ca3af',fillOpacity:0.5,dashArray:'3,3'},
+            interactive:false
+          }).addTo(map);
+        }
+      } catch(e) {}
+
+      painted.push({polygon: polyLayer, gray: grayLayer, pts: pts, color: color});
+    });
+
     if (shouldSave !== false) save();
   }
 
   // ===== Управление =====
   function undoLast(){
     if (!painted.length) return;
-    var last = painted.pop();
-    if (last.polygon) map.removeLayer(last.polygon);
-    if (last.gray) map.removeLayer(last.gray);
+    // Удаляем ВСЕ куски последнего штриха (pts одинаковые)
+    var lastPts = painted[painted.length-1].pts;
+    var key = JSON.stringify(lastPts);
+    var toRemove = painted.filter(function(p){ return JSON.stringify(p.pts) === key; });
+    toRemove.forEach(function(p){
+      if (p.polygon) map.removeLayer(p.polygon);
+      if (p.gray) map.removeLayer(p.gray);
+    });
+    painted = painted.filter(function(p){ return JSON.stringify(p.pts) !== key; });
     save();
   }
 
@@ -311,4 +348,4 @@ body{background:#0f172a;color:#e2e8f0;overflow:hidden;height:100vh}
 })();
 </script>
 </body>
-</html>
+  </html>
