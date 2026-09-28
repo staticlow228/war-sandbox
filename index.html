@@ -7,66 +7,77 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <style>
 body{margin:0;background:#0f172a;font-family:sans-serif}
-#map{position:absolute;inset:0}
+#map{position:absolute;inset:0;background:#0f172a}
 #info{position:absolute;bottom:14px;left:14px;background:rgba(15,23,42,.95);border:1px solid #334155;padding:10px 14px;border-radius:10px;z-index:1000;font-size:13px;color:#e2e8f0;line-height:1.8}
 #info .i{display:flex;align-items:center;gap:8px}
 #info .sw{width:16px;height:16px;border-radius:3px;border:1px solid #475569}
-#load{position:fixed;inset:0;background:#0f172a;color:#e2e8f0;display:flex;align-items:center;justify-content:center;font-size:16px;z-index:9999}
+#load{position:fixed;inset:0;background:#0f172a;color:#e2e8f0;display:flex;align-items:center;justify-content:center;font-size:16px;z-index:9999;text-align:center;padding:20px}
 </style>
 </head>
 <body>
 <div id="map"></div>
 <div id="info">
   <div class="i"><div class="sw" style="background:#3b82f6"></div>Украина</div>
-  <div class="i"><div class="sw" style="background:#ef4444"></div>Крым (оккупирован)</div>
+  <div class="i"><div class="sw" style="background:#ef4444"></div>Крым</div>
 </div>
 <div id="load">Загрузка...</div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
 <script>
-var map = L.map('map', {zoomControl:true, attributionControl:false});
+var map = L.map('map', {zoomControl:true, attributionControl:false}).setView([49, 32], 6);
 L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom:12}).addTo(map);
 
-// Только Крым и Севастополь
-function isCrimea(n){
-  n = (n||'').toLowerCase();
-  return n.indexOf('krym')>-1 || n.indexOf('crimea')>-1 || n.indexOf('sevastopol')>-1;
+function isCrimea(name){
+  var n = (name||'').toLowerCase();
+  return n.indexOf('krym')>-1 || n.indexOf('crimea')>-1 || n.indexOf('sevastopol')>-1 || n.indexOf('автономна')>-1 && n.indexOf('крим')>-1;
 }
 
-fetch('https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_50m_admin_1_states_provinces.geojson')
-.then(function(r){ return r.json(); })
-.then(function(data){
-  var features = data.features.filter(function(f){ return f.properties.adm0_a3 === 'UKR'; });
+// Пробуем 10m (там точно есть области Украины)
+var URL = 'https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_10m_admin_1_states_provinces.geojson';
+
+document.getElementById('load').textContent = 'Скачиваем границы (может занять 10-20 сек)...';
+
+fetch(URL).then(function(r){
+  if (!r.ok) throw new Error('HTTP ' + r.status);
+  return r.json();
+}).then(function(data){
+  // Ищем украинские области по нескольким полям
+  var features = data.features.filter(function(f){
+    var p = f.properties;
+    return p.adm0_a3 === 'UKR' || p.iso_a2 === 'UA' || p.admin === 'Ukraine' || p.gu_a3 === 'UKR';
+  });
+
+  if (!features.length) {
+    document.getElementById('load').textContent = 'Не нашлось областей. Проверь консоль.';
+    console.log('Пример properties:', data.features[0].properties);
+    return;
+  }
+
   var layers = [];
   features.forEach(function(f){
-    var name = f.properties.name || '';
+    var name = f.properties.name || f.properties.name_ru || '';
     var occ = isCrimea(name);
     var color = occ ? '#ef4444' : '#3b82f6';
     var layer = L.geoJSON(f, {
       style: {color:'#0f172a', weight:1, fillColor:color, fillOpacity:0.8}
     }).addTo(map);
-    layer.bindTooltip(name + (occ ? ' (оккупирован)' : ''), {sticky:true});
+    layer.bindTooltip(name, {sticky:true});
     layers.push(layer);
   });
 
+  // Центрируем аккуратно
   try {
-    var merged = features[0];
-    for (var i=1; i<features.length; i++) {
-      try { merged = turf.union(merged, features[i]); } catch(e){}
+    var group = L.featureGroup(layers);
+    var bounds = group.getBounds();
+    if (bounds && bounds.isValid()) {
+      map.fitBounds(bounds, {padding:[20,20]});
     }
-    L.geoJSON(merged, {
-      style: {color:'#f8fafc', weight:2.5, fillOpacity:0, opacity:0.9},
-      interactive: false
-    }).addTo(map);
-  } catch(e){}
+  } catch(e) { console.warn(e); }
 
-  var group = L.featureGroup(layers);
-  map.fitBounds(group.getBounds(), {padding:[20,20]});
   document.getElementById('load').style.display = 'none';
-})
-.catch(function(e){
-  document.getElementById('load').textContent = 'Ошибка: ' + e.message;
+}).catch(function(e){
+  document.getElementById('load').textContent = 'Ошибка загрузки: ' + e.message;
+  console.error(e);
 });
 </script>
 </body>
