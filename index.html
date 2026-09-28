@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>Карта</title>
+<title>Фронт</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;font-family:system-ui,sans-serif;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none}
@@ -12,24 +12,27 @@ body{background:#0f172a;color:#e2e8f0;overflow:hidden;height:100vh}
 .hidden{display:none!important}
 #load{position:fixed;inset:0;z-index:9999;background:#0f172a;display:flex;align-items:center;justify-content:center;font-size:16px;text-align:center;padding:20px;color:#e2e8f0}
 
-#brushPanel{position:absolute;bottom:10px;left:8px;width:250px;background:rgba(15,23,42,.96);border:1px solid #334155;padding:10px;border-radius:12px;z-index:1000;font-size:11px}
-#brushPanel .row{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:6px}
-#brushPanel .brush{flex:1;min-width:45px;padding:8px 4px;border-radius:8px;background:#334155;color:#fff;border:2px solid #475569;font-size:11px;cursor:pointer;font-weight:600;text-align:center}
-#brushPanel .brush.active{border-color:#facc15;background:#475569}
-#brushPanel .brush.b-blue{background:#3b82f6}
-#brushPanel .brush.b-red{background:#ef4444}
-#brushPanel .brush.b-dred{background:#7f1d1d}
-#brushPanel .brush.b-dblue{background:#1e3a8a}
-#brushPanel .brush.b-gray{background:#9ca3af;color:#111}
-#brushPanel input[type=range]{width:100%;margin:4px 0}
-#brushPanel button{width:100%;padding:8px;margin-top:5px;background:#475569;color:#fff;border:none;border-radius:6px;font-size:11px;cursor:pointer;font-weight:600}
-#brushPanel .info{color:#94a3b8;text-align:center;margin-top:4px}
+#panel{position:absolute;bottom:10px;left:8px;width:230px;background:rgba(15,23,42,.96);border:1px solid #334155;padding:10px;border-radius:12px;z-index:1000;font-size:11px}
+#panel .header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+#panel .header span{font-weight:600;color:#cbd5e1}
+#panel .closeBtn{background:transparent;border:none;color:#94a3b8;font-size:18px;cursor:pointer;padding:0 5px;line-height:1}
+#panel .row{display:flex;gap:6px;margin-bottom:6px}
+#panel .brush{flex:1;padding:12px 4px;border-radius:8px;color:#fff;border:2px solid #475569;font-size:11px;cursor:pointer;font-weight:600;text-align:center;transition:all .15s}
+#panel .brush.active{border-color:#facc15;transform:scale(1.03)}
+#panel .brush.b-dred{background:#7f1d1d}
+#panel .brush.b-dblue{background:#1e3a8a}
+#panel button.act{width:100%;padding:10px;margin-top:5px;background:#475569;color:#fff;border:none;border-radius:6px;font-size:11px;cursor:pointer;font-weight:600}
+#panel button.act.active{background:#facc15;color:#111}
+#panel button.danger{background:#7f1d1d}
+#panel .hintTxt{color:#94a3b8;text-align:center;margin-top:6px;font-size:10px;line-height:1.4}
 
-#legend{position:absolute;top:10px;left:8px;background:rgba(15,23,42,.95);border:1px solid #334155;padding:8px;border-radius:10px;z-index:1000;font-size:10px;line-height:1.6}
+#openBtn{position:absolute;bottom:10px;left:8px;width:44px;height:44px;background:rgba(15,23,42,.96);border:1px solid #334155;border-radius:50%;color:#e2e8f0;font-size:20px;cursor:pointer;z-index:1000;display:flex;align-items:center;justify-content:center}
+
+#legend{position:absolute;top:10px;left:8px;background:rgba(15,23,42,.95);border:1px solid #334155;padding:8px;border-radius:10px;z-index:1000;font-size:11px;line-height:1.8}
 #legend .item{display:flex;align-items:center;gap:6px}
 #legend .sw{width:14px;height:14px;border-radius:3px;border:1px solid #475569}
 
-#hint{position:absolute;top:60px;left:50%;transform:translateX(-50%);background:rgba(250,204,21,.95);color:#111;padding:8px 14px;border-radius:8px;font-size:12px;font-weight:600;z-index:2000;max-width:80vw;text-align:center}
+#hint{position:absolute;top:60px;left:50%;transform:translateX(-50%);background:rgba(250,204,21,.95);color:#111;padding:8px 14px;border-radius:8px;font-size:12px;font-weight:600;z-index:2000;max-width:80vw;text-align:center;display:none}
 
 .leaflet-container.drawing{cursor:crosshair!important}
 .leaflet-container.drawing .leaflet-interactive{pointer-events:none}
@@ -38,34 +41,33 @@ body{background:#0f172a;color:#e2e8f0;overflow:hidden;height:100vh}
 <body>
 
 <div id="map"></div>
-
 <div id="load">Загрузка карты...</div>
 
 <div id="legend" class="hidden">
   <div class="item"><div class="sw" style="background:#3b82f6"></div>Украина</div>
-  <div class="item"><div class="sw" style="background:#ef4444"></div>Россия + Крым</div>
+  <div class="item"><div class="sw" style="background:#ef4444"></div>Россия</div>
+  <div class="item"><div class="sw" style="background:#7f1d1d"></div>Оккупация РФ</div>
+  <div class="item"><div class="sw" style="background:#1e3a8a"></div>Освобождено ВСУ</div>
 </div>
 
-<div id="brushPanel" class="hidden">
-  <div style="color:#cbd5e1;font-weight:600;margin-bottom:6px">🎨 Кисть</div>
-  <div class="row">
-    <button class="brush b-blue" data-color="#3b82f6">🔵 УКР</button>
-    <button class="brush b-red" data-color="#ef4444">🔴 РФ</button>
-    <button class="brush b-dred" data-color="#7f1d1d">🟥 Окуп. РФ</button>
-    <button class="brush b-dblue" data-color="#1e3a8a">🟦 Освоб.</button>
-    <button class="brush b-gray" data-color="#9ca3af">⬜ Сер.</button>
+<button id="openBtn" class="hidden">🎨</button>
+
+<div id="panel" class="hidden">
+  <div class="header">
+    <span>🎨 Кисть</span>
+    <button class="closeBtn" id="closeBtn">✕</button>
   </div>
   <div class="row">
-    <span style="color:#cbd5e1">📏 Радиус: <span id="rval">5</span> км</span>
+    <button class="brush b-dred active" data-color="#7f1d1d">🟥 Оккупация</button>
+    <button class="brush b-dblue" data-color="#1e3a8a">🟦 Освобождение</button>
   </div>
-  <input type="range" id="radius" min="1" max="10" value="5" step="1">
-  <button id="drawBtn">✏️ Включить кисть</button>
-  <button id="undoBtn" style="background:#7f1d1d">↩ Убрать последний</button>
-  <button id="clearBtn" style="background:#7f1d1d">🗑 Убрать все</button>
-  <div class="info" id="brushInfo">Выбери цвет и жми "Включить кисть"</div>
+  <button class="act" id="drawBtn">✏️ Включить кисть</button>
+  <button class="act danger" id="undoBtn">↩ Убрать последний</button>
+  <button class="act danger" id="clearBtn">🗑 Убрать всё</button>
+  <div class="hintTxt" id="hintTxt">Обведи территорию пальцем</div>
 </div>
 
-<div id="hint" class="hidden"></div>
+<div id="hint"></div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
@@ -74,40 +76,40 @@ body{background:#0f172a;color:#e2e8f0;overflow:hidden;height:100vh}
   'use strict';
 
   var map;
-  var radiusKm = 5;
-  var currentColor = '#3b82f6';
+  var currentColor = '#7f1d1d';
   var drawMode = false;
   var currentPoints = [];
   var currentPreview = null;
-  var painted = []; // {line, buffer}
+  var painted = [];
+  var GRAY_RADIUS_KM = 2;
+  var STORAGE_KEY = 'war_sandbox_paints_v1';
 
   function init(){
     map = L.map('map', {zoomControl:true, attributionControl:false}).setView([50, 34], 5);
     L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom:12}).addTo(map);
 
-    // Кисти
-    document.querySelectorAll('.brush').forEach(function(b){
+    var brushes = document.querySelectorAll('.brush');
+    brushes.forEach(function(b){
       b.addEventListener('click', function(){
-        document.querySelectorAll('.brush').forEach(function(x){ x.classList.remove('active'); });
+        brushes.forEach(function(x){ x.classList.remove('active'); });
         b.classList.add('active');
         currentColor = b.getAttribute('data-color');
-        document.getElementById('brushInfo').textContent = 'Цвет выбран';
+        document.getElementById('hintTxt').textContent = (currentColor === '#7f1d1d' ? 'Режим: оккупация РФ' : 'Режим: освобождение ВСУ');
       });
-    });
-    document.querySelector('.brush').classList.add('active');
-
-    var slider = document.getElementById('radius');
-    slider.addEventListener('input', function(){
-      radiusKm = parseInt(this.value);
-      document.getElementById('rval').textContent = radiusKm;
-      painted.forEach(function(p){ rebuild(p); });
     });
 
     document.getElementById('drawBtn').addEventListener('click', toggleDraw);
     document.getElementById('undoBtn').addEventListener('click', undoLast);
     document.getElementById('clearBtn').addEventListener('click', clearAll);
+    document.getElementById('closeBtn').addEventListener('click', function(){
+      document.getElementById('panel').classList.add('hidden');
+      document.getElementById('openBtn').classList.remove('hidden');
+    });
+    document.getElementById('openBtn').addEventListener('click', function(){
+      document.getElementById('panel').classList.remove('hidden');
+      document.getElementById('openBtn').classList.add('hidden');
+    });
 
-    // Рисование
     map.on('mousedown', onStart);
     map.on('mousemove', onMove);
     map.on('mouseup', onEnd);
@@ -118,49 +120,81 @@ body{background:#0f172a;color:#e2e8f0;overflow:hidden;height:100vh}
     loadData();
   }
 
+  // ===== СОХРАНЕНИЕ =====
+  function save() {
+    try {
+      var data = painted.map(function(p){
+        var pts = p.polygon.getLatLngs()[0].map(function(ll){ return [ll.lat, ll.lng]; });
+        return { pts: pts, color: p.color };
+      });
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    } catch(e) { console.warn('Save error', e); }
+  }
+
+  function load() {
+    try {
+      var raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return;
+      var data = JSON.parse(raw);
+      if (!Array.isArray(data)) return;
+      data.forEach(function(item){
+        addPolygon(item.pts, item.color, false);
+      });
+    } catch(e) { console.warn('Load error', e); }
+  }
+
+  // ===== ЗАГРУЗКА КАРТЫ =====
   function loadData(){
-    document.getElementById('load').textContent = 'Загрузка (10-20 сек)...';
-    // Страны (админ 0) — Россия и Украина
-    fetch('https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_50m_admin_0_countries.geojson')
-      .then(function(r){ return r.json(); })
-      .then(function(countries){
-        var ukr = countries.features.find(function(f){ return f.properties.adm0_a3 === 'UKR'; });
-        var rus = countries.features.find(function(f){ return f.properties.adm0_a3 === 'RUS'; });
+    document.getElementById('load').textContent = 'Загрузка (5-10 сек)...';
 
-        // Украина синяя
-        if (ukr) {
-          L.geoJSON(ukr, {style:{color:'#0f172a',weight:1,fillColor:'#3b82f6',fillOpacity:0.85}}).addTo(map);
-        }
-        // Россия красная
-        if (rus) {
-          L.geoJSON(rus, {style:{color:'#0f172a',weight:1,fillColor:'#ef4444',fillOpacity:0.85}}).addTo(map);
+    fetch('https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_110m_admin_0_countries.geojson')
+      .then(function(r){
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.json();
+      })
+      .then(function(data){
+        var ukr = null, rus = null;
+        data.features.forEach(function(f){
+          var p = f.properties;
+          var code = p.ADM0_A3 || p.adm0_a3 || '';
+          if (code === 'UKR') ukr = f;
+          if (code === 'RUS') rus = f;
+        });
+
+        if (!ukr || !rus) {
+          document.getElementById('load').textContent = 'Не нашёл страны.';
+          return;
         }
 
-        // Крым — отдельно админ 1
-        return fetch('https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_10m_admin_1_states_provinces.geojson')
-          .then(function(r){ return r.json(); })
-          .then(function(data){
-            var crimea = data.features.filter(function(f){
-              var p = f.properties;
-              var n = (p.name||'').toLowerCase();
-              var isUkr = p.adm0_a3 === 'UKR' || p.admin === 'Ukraine';
-              var isCr = n.indexOf('krym')>-1 || n.indexOf('crimea')>-1 || n.indexOf('sevastopol')>-1;
-              return isUkr && isCr;
-            });
-            crimea.forEach(function(f){
-              L.geoJSON(f, {style:{color:'#0f172a',weight:1,fillColor:'#ef4444',fillOpacity:0.95}}).addTo(map);
-            });
-            // Центрируем
-            try {
-              if (ukr) {
-                var b = L.geoJSON(ukr).getBounds();
-                map.fitBounds(b, {padding:[20,20]});
-              }
-            } catch(e){}
-            document.getElementById('load').style.display = 'none';
-            document.getElementById('legend').classList.remove('hidden');
-            document.getElementById('brushPanel').classList.remove('hidden');
-          });
+        L.geoJSON(rus, {
+          style: {color:'#0f172a', weight:1, fillColor:'#ef4444', fillOpacity:0.85}
+        }).addTo(map);
+
+        L.geoJSON(ukr, {
+          style: {color:'#0f172a', weight:1, fillColor:'#3b82f6', fillOpacity:0.85}
+        }).addTo(map);
+
+        var crimea = [
+          [46.15, 33.6],[46.1, 34.5],[45.9, 35.2],[45.6, 35.8],
+          [45.4, 36.5],[45.0, 36.6],[44.8, 36.1],[44.5, 35.2],
+          [44.4, 34.5],[44.5, 33.8],[44.7, 33.5],[45.2, 32.5],
+          [45.7, 32.5],[46.0, 33.0]
+        ];
+        L.polygon(crimea, {
+          color:'#0f172a', weight:1, fillColor:'#7f1d1d', fillOpacity:0.95
+        }).addTo(map);
+
+        try {
+          var b = L.geoJSON(ukr).getBounds();
+          map.fitBounds(b, {padding:[20,20]});
+        } catch(e){}
+
+        // Загружаем сохранённые захваты
+        load();
+
+        document.getElementById('load').style.display = 'none';
+        document.getElementById('legend').classList.remove('hidden');
+        document.getElementById('panel').classList.remove('hidden');
       })
       .catch(function(e){
         document.getElementById('load').textContent = 'Ошибка: ' + e.message;
@@ -168,17 +202,46 @@ body{background:#0f172a;color:#e2e8f0;overflow:hidden;height:100vh}
       });
   }
 
+  // ===== ДОБАВЛЕНИЕ ПОЛИГОНА =====
+  function addPolygon(pts, color, shouldSave) {
+    var latlngs = pts.map(function(p){ return L.latLng(p[0], p[1]); });
+
+    var polygon = L.polygon(latlngs, {
+      color: color, weight: 2, fillColor: color, fillOpacity: 0.75
+    }).addTo(map);
+
+    var grayRing = null;
+    try {
+      var polyGeo = polygon.toGeoJSON();
+      var buffered = turf.buffer(polyGeo, GRAY_RADIUS_KM, {units: 'kilometers'});
+      var ring = turf.difference(buffered, polyGeo);
+      if (ring) {
+        grayRing = L.geoJSON(ring, {
+          style: {color:'#9ca3af', weight:1, fillColor:'#9ca3af', fillOpacity:0.5, dashArray:'3,3'},
+          interactive: false
+        }).addTo(map);
+      }
+    } catch(err){ console.warn('Буфер:', err); }
+
+    painted.push({polygon: polygon, gray: grayRing, color: color});
+
+    if (shouldSave !== false) save();
+  }
+
+  // ===== КИСТЬ =====
   function toggleDraw(){
     drawMode = !drawMode;
     var btn = document.getElementById('drawBtn');
     var c = map.getContainer();
     if (drawMode) {
       btn.textContent = '✖ Стоп';
+      btn.classList.add('active');
       c.classList.add('drawing');
       map.dragging.disable();
-      showHint('Веди пальцем — рисуй линию');
+      showHint('Обведи территорию пальцем');
     } else {
       btn.textContent = '✏️ Включить кисть';
+      btn.classList.remove('active');
       c.classList.remove('drawing');
       map.dragging.enable();
       if (currentPreview) { map.removeLayer(currentPreview); currentPreview = null; }
@@ -190,62 +253,57 @@ body{background:#0f172a;color:#e2e8f0;overflow:hidden;height:100vh}
     if (!drawMode) return;
     if (e.originalEvent && e.originalEvent.touches && e.originalEvent.touches.length > 1) return;
     currentPoints = [e.latlng];
-    currentPreview = L.polyline(currentPoints, {color:currentColor, weight:4}).addTo(map);
+    currentPreview = L.polygon(currentPoints, {
+      color: currentColor, weight: 3, fillColor: currentColor, fillOpacity: 0.4
+    }).addTo(map);
   }
+
   function onMove(e){
     if (!drawMode || !currentPreview) return;
     currentPoints.push(e.latlng);
     currentPreview.setLatLngs(currentPoints);
     if (e.originalEvent && e.originalEvent.preventDefault) e.originalEvent.preventDefault();
   }
+
   function onEnd(){
     if (!drawMode || !currentPreview) return;
-    if (currentPoints.length < 2) {
+    if (currentPoints.length < 3) {
       map.removeLayer(currentPreview); currentPreview = null; currentPoints = [];
+      showHint('Слишком коротко — обведи больше');
       return;
     }
     map.removeLayer(currentPreview); currentPreview = null;
-    var pts = currentPoints.slice(); currentPoints = [];
+    var pts = currentPoints.map(function(ll){ return [ll.lat, ll.lng]; });
+    currentPoints = [];
 
-    var line = L.polyline(pts, {color:currentColor, weight:4}).addTo(map);
-    var p = {line: line, buffer: null, color: currentColor};
-    painted.push(p);
-    rebuild(p);
+    addPolygon(pts, currentColor, true);
   }
 
-  function rebuild(p){
-    if (p.buffer) { map.removeLayer(p.buffer); p.buffer = null; }
-    try {
-      var g = p.line.toGeoJSON();
-      var b = turf.buffer(g, radiusKm, {units: 'kilometers'});
-      if (!b) return;
-      p.buffer = L.geoJSON(b, {
-        style: {color: p.color, weight:1, fillColor: p.color, fillOpacity: 0.7},
-        interactive: false
-      }).addTo(map);
-    } catch(e){}
-  }
-
+  // ===== УПРАВЛЕНИЕ =====
   function undoLast(){
     if (!painted.length) return;
     var last = painted.pop();
-    if (last.line) map.removeLayer(last.line);
-    if (last.buffer) map.removeLayer(last.buffer);
+    if (last.polygon) map.removeLayer(last.polygon);
+    if (last.gray) map.removeLayer(last.gray);
+    save();
   }
 
   function clearAll(){
+    if (!painted.length) return;
+    if (!confirm('Убрать все захваты?')) return;
     painted.forEach(function(p){
-      if (p.line) map.removeLayer(p.line);
-      if (p.buffer) map.removeLayer(p.buffer);
+      if (p.polygon) map.removeLayer(p.polygon);
+      if (p.gray) map.removeLayer(p.gray);
     });
     painted = [];
+    save();
   }
 
   function showHint(t){
     var h = document.getElementById('hint');
     h.textContent = t;
-    h.classList.remove('hidden');
-    setTimeout(function(){ h.classList.add('hidden'); }, 2500);
+    h.style.display = 'block';
+    setTimeout(function(){ h.style.display = 'none'; }, 2500);
   }
 
   init();
