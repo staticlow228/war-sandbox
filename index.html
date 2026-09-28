@@ -16,11 +16,14 @@ body{background:#0f172a;color:#e2e8f0;overflow:hidden;height:100vh}
 #panel .header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
 #panel .header span{font-weight:600;color:#cbd5e1}
 #panel .closeBtn{background:transparent;border:none;color:#94a3b8;font-size:18px;cursor:pointer;padding:0 5px;line-height:1}
-#panel .row{display:flex;gap:6px;margin-bottom:6px}
+#panel .row{display:flex;gap:6px;margin-bottom:8px}
 #panel .brush{flex:1;padding:12px 4px;border-radius:8px;color:#fff;border:2px solid #475569;font-size:11px;cursor:pointer;font-weight:600;text-align:center;transition:all .15s}
 #panel .brush.active{border-color:#facc15;transform:scale(1.03)}
-#panel .brush.b-dred{background:#7f1d1d}
-#panel .brush.b-dblue{background:#1e3a8a}
+#panel .brush.b-red{background:#dc2626}
+#panel .brush.b-blue{background:#2563eb}
+#panel .sliderLabel{display:flex;justify-content:space-between;color:#cbd5e1;font-size:11px;margin-bottom:4px}
+#panel .sliderLabel span:last-child{color:#facc15;font-weight:600}
+#panel input[type=range]{width:100%;margin-bottom:8px}
 #panel button.act{width:100%;padding:10px;margin-top:5px;background:#475569;color:#fff;border:none;border-radius:6px;font-size:11px;cursor:pointer;font-weight:600}
 #panel button.act.active{background:#facc15;color:#111}
 #panel button.danger{background:#7f1d1d}
@@ -43,8 +46,6 @@ body{background:#0f172a;color:#e2e8f0;overflow:hidden;height:100vh}
 <div id="legend" class="hidden">
   <div class="item"><div class="sw" style="background:#3b82f6"></div>Украина</div>
   <div class="item"><div class="sw" style="background:#ef4444"></div>Россия</div>
-  <div class="item"><div class="sw" style="background:#7f1d1d"></div>Оккупация (УКР→РФ)</div>
-  <div class="item"><div class="sw" style="background:#1e3a8a"></div>Освобождение (РФ→УКР)</div>
 </div>
 
 <button id="openBtn" class="hidden">🎨</button>
@@ -55,9 +56,14 @@ body{background:#0f172a;color:#e2e8f0;overflow:hidden;height:100vh}
     <button class="closeBtn" id="closeBtn">✕</button>
   </div>
   <div class="row">
-    <button class="brush b-dred active" data-color="#7f1d1d">🟥 Оккупация</button>
-    <button class="brush b-dblue" data-color="#1e3a8a">🟦 Освобождение</button>
+    <button class="brush b-red active" data-color="#dc2626">🔴 Красный</button>
+    <button class="brush b-blue" data-color="#2563eb">🔵 Синий</button>
   </div>
+  <div class="sliderLabel">
+    <span>📏 Серая зона</span>
+    <span id="rval">2 км</span>
+  </div>
+  <input type="range" id="radius" min="1" max="15" value="2" step="1">
   <button class="act" id="drawBtn">✏️ Включить кисть</button>
   <button class="act danger" id="undoBtn">↩ Убрать последний</button>
   <button class="act danger" id="clearBtn">🗑 Убрать всё</button>
@@ -73,30 +79,18 @@ body{background:#0f172a;color:#e2e8f0;overflow:hidden;height:100vh}
   'use strict';
 
   var map;
-  var currentColor = '#7f1d1d';
+  var currentColor = '#dc2626';
   var drawMode = false;
   var currentPoints = [];
   var currentPreview = null;
   var startMarker = null;
   var GRAY_RADIUS_KM = 2;
-  var STORAGE_KEY = 'war_sandbox_v7';
-
-  // Каждая кисть режет по своей стране
-  var COLOR_COUNTRY = {
-    '#7f1d1d': 'UKR',  // красная — режется по Украине (оккупирует её)
-    '#1e3a8a': 'RUS'   // синяя — режется по России (освобождает её)
-  };
-  var OPPOSITE = {
-    '#7f1d1d': '#1e3a8a',
-    '#1e3a8a': '#7f1d1d'
-  };
-
-  // Объединение для финального клипа (чтоб не вылезало за пределы обоих государств)
+  var STORAGE_KEY = 'war_sandbox_v9';
   var unionAll = null;
 
-  var countryFeatures = { UKR: null, RUS: null };
-  var paintedByColor = {};
-  var layersByColor = {};
+  // painted[color] = массив фич
+  var painted = { '#dc2626': [], '#2563eb': [] };
+  var layers = { '#dc2626': null, '#2563eb': null };  // {fill, gray}
 
   function init(){
     map = L.map('map', {zoomControl:true, attributionControl:false}).setView([50, 34], 5);
@@ -123,6 +117,14 @@ body{background:#0f172a;color:#e2e8f0;overflow:hidden;height:100vh}
       document.getElementById('openBtn').classList.add('hidden');
     });
 
+    var slider = document.getElementById('radius');
+    slider.addEventListener('input', function(){
+      GRAY_RADIUS_KM = parseInt(this.value);
+      document.getElementById('rval').textContent = GRAY_RADIUS_KM + ' км';
+      redraw('#dc2626');
+      redraw('#2563eb');
+    });
+
     var container = map.getContainer();
     container.addEventListener('touchstart', handleStart, {passive:false});
     container.addEventListener('touchmove', handleMove, {passive:false});
@@ -138,17 +140,17 @@ body{background:#0f172a;color:#e2e8f0;overflow:hidden;height:100vh}
 
   // ===== Save/Load =====
   function saveAll() {
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(paintedByColor)); } catch(e){}
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(painted)); } catch(e){}
   }
   function loadAll() {
     try {
       var raw = localStorage.getItem(STORAGE_KEY);
       if (!raw) return;
       var data = JSON.parse(raw);
-      Object.keys(data).forEach(function(color){
-        paintedByColor[color] = data[color];
-        redrawColor(color);
-      });
+      if (data['#dc2626']) painted['#dc2626'] = data['#dc2626'];
+      if (data['#2563eb']) painted['#2563eb'] = data['#2563eb'];
+      redraw('#dc2626');
+      redraw('#2563eb');
     } catch(e){}
   }
 
@@ -158,30 +160,27 @@ body{background:#0f172a;color:#e2e8f0;overflow:hidden;height:100vh}
     fetch('https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_110m_admin_0_countries.geojson')
       .then(function(r){ if (!r.ok) throw new Error('HTTP '+r.status); return r.json(); })
       .then(function(data){
+        var ukr = null, rus = null;
         data.features.forEach(function(f){
           var code = f.properties.ADM0_A3 || f.properties.adm0_a3 || '';
-          if (code === 'UKR') countryFeatures.UKR = f;
-          if (code === 'RUS') countryFeatures.RUS = f;
+          if (code === 'UKR') ukr = f;
+          if (code === 'RUS') rus = f;
         });
-        if (!countryFeatures.UKR || !countryFeatures.RUS) {
-          document.getElementById('load').textContent = 'Не нашёл страны';
-          return;
-        }
+        if (!ukr || !rus) { document.getElementById('load').textContent = 'Не нашёл страны'; return; }
 
-        L.geoJSON(countryFeatures.RUS, {style:{color:'#0f172a',weight:1,fillColor:'#ef4444',fillOpacity:0.85}}).addTo(map);
-        L.geoJSON(countryFeatures.UKR, {style:{color:'#0f172a',weight:1,fillColor:'#3b82f6',fillOpacity:0.85}}).addTo(map);
+        L.geoJSON(rus, {style:{color:'#0f172a',weight:1,fillColor:'#ef4444',fillOpacity:0.85}}).addTo(map);
+        L.geoJSON(ukr, {style:{color:'#0f172a',weight:1,fillColor:'#3b82f6',fillOpacity:0.85}}).addTo(map);
 
         var crimea = [
           [46.15,33.6],[46.1,34.5],[45.9,35.2],[45.6,35.8],[45.4,36.5],[45.0,36.6],
           [44.8,36.1],[44.5,35.2],[44.4,34.5],[44.5,33.8],[44.7,33.5],[45.2,32.5],
           [45.7,32.5],[46.0,33.0]
         ];
-        L.polygon(crimea, {color:'#0f172a',weight:1,fillColor:'#7f1d1d',fillOpacity:0.95}).addTo(map);
+        L.polygon(crimea, {color:'#0f172a',weight:1,fillColor:'#dc2626',fillOpacity:0.95}).addTo(map);
 
-        try { unionAll = turf.union(countryFeatures.UKR, countryFeatures.RUS); }
-        catch(e){ unionAll = countryFeatures.UKR; }
+        try { unionAll = turf.union(ukr, rus); } catch(e){ unionAll = ukr; }
 
-        try { map.fitBounds(L.geoJSON(countryFeatures.UKR).getBounds(), {padding:[20,20]}); } catch(e){}
+        try { map.fitBounds(L.geoJSON(ukr).getBounds(), {padding:[20,20]}); } catch(e){}
 
         loadAll();
         document.getElementById('load').style.display = 'none';
@@ -238,7 +237,7 @@ body{background:#0f172a;color:#e2e8f0;overflow:hidden;height:100vh}
 
     currentPreview = L.polygon(currentPoints, {
       color: '#000', weight: 3, opacity: 0.9,
-      fillColor: currentColor, fillOpacity: 0.2,
+      fillColor: currentColor, fillOpacity: 0.15,
       dashArray: '5,5'
     }).addTo(map);
   }
@@ -261,11 +260,10 @@ body{background:#0f172a;color:#e2e8f0;overflow:hidden;height:100vh}
     addStroke(arr, currentColor);
   }
 
-  // ===== Штрих =====
+  // ===== Добавление =====
   function addStroke(pts, color) {
     if (!unionAll) return;
 
-    // Полигон
     var coords = pts.map(function(p){ return [p[1], p[0]]; });
     var first = coords[0], last = coords[coords.length-1];
     if (first[0] !== last[0] || first[1] !== last[1]) coords.push([first[0], first[1]]);
@@ -276,86 +274,90 @@ body{background:#0f172a;color:#e2e8f0;overflow:hidden;height:100vh}
       properties: {}
     };
 
-    // Обрезаем по ВСЕЙ карте (УКР+РФ вместе) — чтоб не вылезало за пределы
     var clipped = null;
     try { clipped = turf.intersect(drawn, unionAll); } catch(e){}
     if (!clipped) { showHint('За пределами карты'); return; }
 
-    // === ВЫТЕСНЯЕМ ПРОТИВОПОЛОЖНЫЙ ЦВЕТ ВЕЗДЕ (включая чужую страну) ===
-    var oppositeColor = OPPOSITE[color];
-    if (paintedByColor[oppositeColor] && paintedByColor[oppositeColor].length) {
+    // === ВЫТЕСНЕНИЕ ДРУГОГО ЦВЕТА ===
+    var otherColor = (color === '#dc2626') ? '#2563eb' : '#dc2626';
+    if (painted[otherColor] && painted[otherColor].length) {
       var newList = [];
-      paintedByColor[oppositeColor].forEach(function(f){
+      painted[otherColor].forEach(function(f){
         try {
           var diff = turf.difference(f, clipped);
           if (diff) newList.push(diff);
-        } catch(e) { newList.push(f); }
+        } catch(e){ newList.push(f); }
       });
-      paintedByColor[oppositeColor] = newList;
-      redrawColor(oppositeColor);
+      painted[otherColor] = newList;
+      redraw(otherColor);
     }
 
-    if (!paintedByColor[color]) paintedByColor[color] = [];
-    paintedByColor[color].push(clipped);
-    redrawColor(color);
+    // === Добавляем к своему ===
+    if (!painted[color]) painted[color] = [];
+    painted[color].push(clipped);
+    redraw(color);
 
     saveAll();
   }
 
-  // ===== Перерисовка =====
-  function redrawColor(color) {
-    if (layersByColor[color]) {
-      if (layersByColor[color].polygon) map.removeLayer(layersByColor[color].polygon);
-      if (layersByColor[color].gray) map.removeLayer(layersByColor[color].gray);
-      delete layersByColor[color];
+  // ===== Перерисовка одного цвета =====
+  function redraw(color) {
+    // Убираем старые слои
+    if (layers[color]) {
+      if (layers[color].fill) map.removeLayer(layers[color].fill);
+      if (layers[color].gray) map.removeLayer(layers[color].gray);
+      layers[color] = null;
     }
 
-    var list = paintedByColor[color] || [];
+    var list = painted[color] || [];
     if (!list.length) return;
 
+    // Объединяем
     var merged = list[0];
     for (var i = 1; i < list.length; i++) {
       try { merged = turf.union(merged, list[i]); } catch(e){}
     }
 
-    var polyLayer = L.geoJSON(merged, {
-      style: { color: color, weight: 2, fillColor: color, fillOpacity: 0.85 }
+    // Заливка
+    var fillLayer = L.geoJSON(merged, {
+      style: { color: color, weight: 1.5, fillColor: color, fillOpacity: 0.5 }
     }).addTo(map);
 
+    // Серая зона
     var grayLayer = null;
     try {
       var buffered = turf.buffer(merged, GRAY_RADIUS_KM, {units:'kilometers'});
       var ring = turf.difference(buffered, merged);
       if (ring) {
         grayLayer = L.geoJSON(ring, {
-          style:{color:'#9ca3af',weight:1,fillColor:'#9ca3af',fillOpacity:0.45,dashArray:'3,3'},
+          style:{color:'#9ca3af',weight:1,fillColor:'#9ca3af',fillOpacity:0.35,dashArray:'3,3'},
           interactive:false
         }).addTo(map);
       }
     } catch(e){}
 
-    layersByColor[color] = {polygon: polyLayer, gray: grayLayer};
+    layers[color] = {fill: fillLayer, gray: grayLayer};
   }
 
   // ===== Управление =====
   function undoLast(){
-    var list = paintedByColor[currentColor] || [];
-    if (!list.length) { showHint('Нет штрихов'); return; }
+    var list = painted[currentColor] || [];
+    if (!list.length) { showHint('Нет штрихов этого цвета'); return; }
     list.pop();
-    if (!list.length) delete paintedByColor[currentColor];
-    redrawColor(currentColor);
+    redraw(currentColor);
     saveAll();
   }
 
   function clearAll(){
     if (!confirm('Убрать все захваты?')) return;
-    Object.keys(layersByColor).forEach(function(color){
-      var l = layersByColor[color];
-      if (l.polygon) map.removeLayer(l.polygon);
-      if (l.gray) map.removeLayer(l.gray);
+    ['#dc2626', '#2563eb'].forEach(function(c){
+      if (layers[c]) {
+        if (layers[c].fill) map.removeLayer(layers[c].fill);
+        if (layers[c].gray) map.removeLayer(layers[c].gray);
+        layers[c] = null;
+      }
+      painted[c] = [];
     });
-    layersByColor = {};
-    paintedByColor = {};
     saveAll();
   }
 
