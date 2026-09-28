@@ -3,7 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>Фронт</title>
+<title>War Sandbox Ukraine</title>
+<link rel="manifest" href="manifest.json">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;font-family:system-ui,sans-serif;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none}
@@ -147,7 +148,6 @@ body{background:#0f172a;color:#e2e8f0;overflow:hidden;height:100vh}
     loadData();
   }
 
-  // ===== ПОДЛОЖКИ =====
   function setMapLayer(type) {
     if (baseLayer) { map.removeLayer(baseLayer); baseLayer = null; }
 
@@ -182,11 +182,9 @@ body{background:#0f172a;color:#e2e8f0;overflow:hidden;height:100vh}
     } catch(e){}
   }
 
-  // ===== ЗАГРУЗКА ГРАНИЦ =====
   function loadData(){
     document.getElementById('load').textContent = 'Загрузка границ...';
 
-    // Параллельно грузим: точную Украину (10m) и грубую РФ (110m)
     var pUkr = fetch('https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_10m_admin_0_countries.geojson')
       .then(function(r){ return r.json(); })
       .then(function(data){
@@ -211,10 +209,7 @@ body{background:#0f172a;color:#e2e8f0;overflow:hidden;height:100vh}
         RUS = res[1];
         if (!UKR || !RUS) { document.getElementById('load').textContent = 'Не нашёл страны'; return; }
 
-        // РФ — грубая, чёрная тонкая
         L.geoJSON(RUS, {style:{color:'#000000',weight:2,fillOpacity:0,opacity:0.6}, interactive:false}).addTo(map);
-
-        // Украина — детальная, чёрная жирнее
         L.geoJSON(UKR, {style:{color:'#000000',weight:2.5,fillOpacity:0,opacity:0.9}, interactive:false}).addTo(map);
 
         try { map.fitBounds(L.geoJSON(UKR).getBounds(), {padding:[20,20]}); } catch(e){}
@@ -382,7 +377,6 @@ body{background:#0f172a;color:#e2e8f0;overflow:hidden;height:100vh}
     saveAll();
   }
 
-  // ===== ЧЁТКАЯ ГРАНИЦА ПЯТЕН =====
   function redrawAll() {
     fillLayers.forEach(function(l){ map.removeLayer(l); });
     fillLayers = [];
@@ -404,10 +398,10 @@ body{background:#0f172a;color:#e2e8f0;overflow:hidden;height:100vh}
       }
       var fl = L.geoJSON(merged, {
         style: {
-          color: '#000000',      // ЧЁРНАЯ обводка (как у госграниц)
-          weight: 2.5,           // потолще
-          opacity: 1,            // яркая
-          fillColor: color,      // заливка своим цветом
+          color: '#000000',
+          weight: 2.5,
+          opacity: 1,
+          fillColor: color,
           fillOpacity: 0.75
         }
       }).addTo(map);
