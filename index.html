@@ -31,7 +31,7 @@ body{background:#0f172a;color:#e2e8f0;overflow:hidden;height:100vh}
 
 #openBtn{position:absolute;bottom:10px;left:8px;width:44px;height:44px;background:rgba(15,23,42,.96);border:1px solid #334155;border-radius:50%;color:#e2e8f0;font-size:20px;cursor:pointer;z-index:1000;display:flex;align-items:center;justify-content:center}
 
-#legend{position:absolute;top:10px;left:8px;background:rgba(15,23,42,.9);border:1px solid #334155;padding:8px;border-radius:10px;z-index:1000;font-size:11px;line-height:1.8}
+#legend{position:absolute;top:10px;left:8px;background:rgba(15,23,42,.85);border:1px solid #334155;padding:8px;border-radius:10px;z-index:1000;font-size:11px;line-height:1.8}
 #legend .item{display:flex;align-items:center;gap:6px}
 #legend .sw{width:14px;height:14px;border-radius:3px;border:1px solid #475569}
 
@@ -44,8 +44,9 @@ body{background:#0f172a;color:#e2e8f0;overflow:hidden;height:100vh}
 <div id="load">Загрузка карты...</div>
 
 <div id="legend" class="hidden">
-  <div class="item"><div class="sw" style="background:#3b82f6"></div>Украина</div>
-  <div class="item"><div class="sw" style="background:#ef4444"></div>Россия</div>
+  <div class="item"><div class="sw" style="background:#dc2626"></div>Красное</div>
+  <div class="item"><div class="sw" style="background:#2563eb"></div>Синее</div>
+  <div class="item"><div class="sw" style="background:#9ca3af"></div>Серая зона</div>
 </div>
 
 <button id="openBtn" class="hidden">🎨</button>
@@ -56,8 +57,8 @@ body{background:#0f172a;color:#e2e8f0;overflow:hidden;height:100vh}
     <button class="closeBtn" id="closeBtn">✕</button>
   </div>
   <div class="row">
-    <button class="brush b-red active" data-color="#dc2626" data-country="UKR">🔴 УКР</button>
-    <button class="brush b-blue" data-color="#2563eb" data-country="RUS">🔵 РФ</button>
+    <button class="brush b-red active" data-color="#dc2626">🔴 Красный</button>
+    <button class="brush b-blue" data-color="#2563eb">🔵 Синий</button>
   </div>
   <div class="sliderLabel">
     <span>📏 Серая зона</span>
@@ -67,7 +68,7 @@ body{background:#0f172a;color:#e2e8f0;overflow:hidden;height:100vh}
   <button class="act" id="drawBtn">✏️ Включить кисть</button>
   <button class="act danger" id="undoBtn">↩ Убрать последний</button>
   <button class="act danger" id="clearBtn">🗑 Убрать всё</button>
-  <div class="hintTxt" id="hintTxt">Красная — по Украине</div>
+  <div class="hintTxt" id="hintTxt">Красный по УКР, по РФ только по синему</div>
 </div>
 
 <div id="hint"></div>
@@ -80,39 +81,27 @@ body{background:#0f172a;color:#e2e8f0;overflow:hidden;height:100vh}
 
   var map;
   var currentColor = '#dc2626';
-  var currentCountry = 'UKR';
+  var currentRadiusKm = 4;
   var drawMode = false;
   var currentPoints = [];
   var currentPreview = null;
   var startMarker = null;
-  var GRAY_RADIUS_KM = 4;
-  var STORAGE_KEY = 'war_sandbox_v10';
+  var STORAGE_KEY = 'war_sandbox_v14';
 
-  // Цвет -> страна (для обрезки)
-  var COLOR_COUNTRY = { '#dc2626': 'UKR', '#2563eb': 'RUS' };
-  var OPPOSITE = { '#dc2626': '#2563eb', '#2563eb': '#dc2626' };
+  // Страны
+  var UKR = null, RUS = null;
 
-  var countryFeatures = { UKR: null, RUS: null };
-
-  // Сырые штрихи (не сжатые) по цвету
-  var strokes = { '#dc2626': [], '#2563eb': [] };
-
-  // Слои: fill (заливка), gray (серая зона)
-  var layers = {};
+  // Штрихи: { feature, color, radius, country }
+  // country — где нарисовано ('UKR' или 'RUS')
+  var strokes = [];
+  var fillLayers = [];
+  var grayLayers = [];
 
   function init(){
     map = L.map('map', {zoomControl:true, attributionControl:false}).setView([50, 34], 6);
 
-    // ===== Esri спутник =====
     L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-      maxZoom: 18,
-      attribution: 'Tiles © Esri'
-    }).addTo(map);
-
-    // Подписи поверх спутника
-    L.tileLayer('https://stamen-tiles-c.a.ssl.fastly.net/toner-labels/{z}/{x}/{y}.png', {
-      maxZoom: 18,
-      opacity: 0.7
+      maxZoom: 18
     }).addTo(map);
 
     var brushes = document.querySelectorAll('.brush');
@@ -121,9 +110,10 @@ body{background:#0f172a;color:#e2e8f0;overflow:hidden;height:100vh}
         brushes.forEach(function(x){ x.classList.remove('active'); });
         b.classList.add('active');
         currentColor = b.getAttribute('data-color');
-        currentCountry = b.getAttribute('data-country');
         document.getElementById('hintTxt').textContent =
-          currentColor === '#dc2626' ? 'Красная — по Украине' : 'Синяя — по России';
+          currentColor === '#dc2626'
+            ? 'УКР — везде, РФ — только по синему'
+            : 'РФ — везде, УКР — только по красному';
       });
     });
 
@@ -141,9 +131,8 @@ body{background:#0f172a;color:#e2e8f0;overflow:hidden;height:100vh}
 
     var slider = document.getElementById('radius');
     slider.addEventListener('input', function(){
-      GRAY_RADIUS_KM = parseInt(this.value);
-      document.getElementById('rval').textContent = GRAY_RADIUS_KM + ' км';
-      redrawAll();
+      currentRadiusKm = parseInt(this.value);
+      document.getElementById('rval').textContent = currentRadiusKm + ' км';
     });
 
     var container = map.getContainer();
@@ -168,8 +157,7 @@ body{background:#0f172a;color:#e2e8f0;overflow:hidden;height:100vh}
       var raw = localStorage.getItem(STORAGE_KEY);
       if (!raw) return;
       var data = JSON.parse(raw);
-      if (data['#dc2626']) strokes['#dc2626'] = data['#dc2626'];
-      if (data['#2563eb']) strokes['#2563eb'] = data['#2563eb'];
+      if (Array.isArray(data)) strokes = data;
     } catch(e){}
   }
 
@@ -181,27 +169,15 @@ body{background:#0f172a;color:#e2e8f0;overflow:hidden;height:100vh}
       .then(function(data){
         data.features.forEach(function(f){
           var code = f.properties.ADM0_A3 || f.properties.adm0_a3 || '';
-          if (code === 'UKR') countryFeatures.UKR = f;
-          if (code === 'RUS') countryFeatures.RUS = f;
+          if (code === 'UKR') UKR = f;
+          if (code === 'RUS') RUS = f;
         });
-        if (!countryFeatures.UKR || !countryFeatures.RUS) {
-          document.getElementById('load').textContent = 'Не нашёл страны';
-          return;
-        }
+        if (!UKR || !RUS) { document.getElementById('load').textContent = 'Не нашёл страны'; return; }
 
-        // Тонкие контуры стран поверх спутника
-        L.geoJSON(countryFeatures.RUS, {style:{color:'#ffffff',weight:2,fillOpacity:0,opacity:0.7}}).addTo(map);
-        L.geoJSON(countryFeatures.UKR, {style:{color:'#ffffff',weight:2,fillOpacity:0,opacity:0.9}}).addTo(map);
+        L.geoJSON(RUS, {style:{color:'#ffffff',weight:2,fillOpacity:0,opacity:0.75}}).addTo(map);
+        L.geoJSON(UKR, {style:{color:'#ffffff',weight:2,fillOpacity:0,opacity:0.9}}).addTo(map);
 
-        // Крым — красный
-        var crimea = [
-          [46.15,33.6],[46.1,34.5],[45.9,35.2],[45.6,35.8],[45.4,36.5],[45.0,36.6],
-          [44.8,36.1],[44.5,35.2],[44.4,34.5],[44.5,33.8],[44.7,33.5],[45.2,32.5],
-          [45.7,32.5],[46.0,33.0]
-        ];
-        L.polygon(crimea, {color:'#dc2626',weight:1,fillColor:'#dc2626',fillOpacity:0.6,interactive:false}).addTo(map);
-
-        try { map.fitBounds(L.geoJSON(countryFeatures.UKR).getBounds(), {padding:[20,20]}); } catch(e){}
+        try { map.fitBounds(L.geoJSON(UKR).getBounds(), {padding:[20,20]}); } catch(e){}
 
         loadAll();
         redrawAll();
@@ -258,7 +234,7 @@ body{background:#0f172a;color:#e2e8f0;overflow:hidden;height:100vh}
 
     currentPreview = L.polygon(currentPoints, {
       color: '#facc15', weight: 3, opacity: 0.9,
-      fillColor: currentColor, fillOpacity: 0.15,
+      fillColor: currentColor, fillOpacity: 0.2,
       dashArray: '5,5'
     }).addTo(map);
   }
@@ -278,15 +254,45 @@ body{background:#0f172a;color:#e2e8f0;overflow:hidden;height:100vh}
     cancelStroke();
     if (pts.length < 3) { showHint('Слишком коротко'); return; }
     var arr = pts.map(function(ll){ return [ll.lat, ll.lng]; });
-    addStroke(arr, currentColor, currentCountry);
+    addStroke(arr, currentColor, currentRadiusKm);
+  }
+
+  // ===== Проверка пересечения с другой кистью =====
+  function getIntersectWithColor(feature, targetColor) {
+    var parts = [];
+    strokes.forEach(function(s){
+      if (s.color !== targetColor) return;
+      try {
+        var inter = turf.intersect(feature, s.feature);
+        if (inter) parts.push(inter);
+      } catch(e){}
+    });
+    if (!parts.length) return null;
+    var merged = parts[0];
+    for (var i = 1; i < parts.length; i++) {
+      try { merged = turf.union(merged, parts[i]); } catch(e){}
+    }
+    return merged;
+  }
+
+  // ===== Определить страну рисования =====
+  function detectCountry(feature) {
+    // Возвращает 'UKR' или 'RUS' — где большая часть фичи
+    try {
+      var iUkr = turf.intersect(feature, UKR);
+      var iRus = turf.intersect(feature, RUS);
+      var aUkr = iUkr ? turf.area(iUkr) : 0;
+      var aRus = iRus ? turf.area(iRus) : 0;
+      if (aUkr > aRus) return 'UKR';
+      if (aRus > aUkr) return 'RUS';
+    } catch(e){}
+    return null;
   }
 
   // ===== Добавление штриха =====
-  function addStroke(pts, color, countryCode) {
-    var country = countryFeatures[countryCode];
-    if (!country) return;
+  function addStroke(pts, color, radius) {
+    if (!UKR || !RUS) return;
 
-    // Формируем полигон
     var coords = pts.map(function(p){ return [p[1], p[0]]; });
     var first = coords[0], last = coords[coords.length-1];
     if (first[0] !== last[0] || first[1] !== last[1]) coords.push([first[0], first[1]]);
@@ -297,120 +303,135 @@ body{background:#0f172a;color:#e2e8f0;overflow:hidden;height:100vh}
       properties: {}
     };
 
-    // Обрезаем по стране
+    // Определяем страну рисования
+    var country = detectCountry(drawn);
+    if (!country) { showHint('За пределами карты'); return; }
+
+    // Обрезаем по этой стране
+    var countryFeature = country === 'UKR' ? UKR : RUS;
     var clipped = null;
-    try { clipped = turf.intersect(drawn, country); } catch(e){}
-    if (!clipped) {
-      showHint(color === '#dc2626' ? '❌ Это не Украина' : '❌ Это не Россия');
-      return;
+    try { clipped = turf.intersect(drawn, countryFeature); } catch(e){}
+    if (!clipped) { showHint('За пределами карты'); return; }
+
+    // === ПРОВЕРКА ПРАВИЛ ===
+    var oppositeColor = (color === '#dc2626') ? '#2563eb' : '#dc2626';
+
+    // Красный на РФ — только по синему
+    // Синий на УКР — только по красному
+    var needIntersection = false;
+    if (color === '#dc2626' && country === 'RUS') needIntersection = true;
+    if (color === '#2563eb' && country === 'UKR') needIntersection = true;
+
+    if (needIntersection) {
+      var target = getIntersectWithColor(clipped, oppositeColor);
+      if (!target) {
+        showHint('❌ Здесь нет ' + (oppositeColor === '#dc2626' ? 'красного' : 'синего'));
+        return;
+      }
+      clipped = target;
     }
 
-    // === ВЫТЕСНЕНИЕ ПРОТИВОПОЛОЖНОГО ЦВЕТА ===
-    var otherColor = OPPOSITE[color];
-    if (strokes[otherColor] && strokes[otherColor].length) {
-      var newList = [];
-      strokes[otherColor].forEach(function(s){
-        try {
-          var diff = turf.difference(s, clipped);
-          if (diff) newList.push(diff);
-        } catch(e){ newList.push(s); }
-      });
-      strokes[otherColor] = newList;
-    }
+    // Сжатие внутрь на radius/2
+    var halfKm = radius / 2;
+    var shrinked = null;
+    try { shrinked = turf.buffer(clipped, -halfKm, {units:'kilometers'}); } catch(e){}
+    if (!shrinked) shrinked = clipped;
 
-    // Добавляем штрих
-    if (!strokes[color]) strokes[color] = [];
-    strokes[color].push(clipped);
+    // === ВЫТЕСНЕНИЕ ПРОТИВОПОЛОЖНОГО ===
+    var newStrokes = [];
+    strokes.forEach(function(s){
+      if (s.color !== oppositeColor) { newStrokes.push(s); return; }
+      try {
+        var diff = turf.difference(s.feature, shrinked);
+        if (diff) newStrokes.push({ feature: diff, color: s.color, radius: s.radius, country: s.country });
+      } catch(e){ newStrokes.push(s); }
+    });
+    strokes = newStrokes;
+
+    strokes.push({ feature: shrinked, color: color, radius: radius, country: country });
 
     redrawAll();
     saveAll();
   }
 
-  // ===== Перерисовка всего =====
+  // ===== Перерисовка =====
   function redrawAll() {
-    // Убираем старые слои
-    Object.keys(layers).forEach(function(k){
-      if (layers[k].fill) map.removeLayer(layers[k].fill);
-      if (layers[k].gray) map.removeLayer(layers[k].gray);
+    fillLayers.forEach(function(l){ map.removeLayer(l); });
+    grayLayers.forEach(function(l){ map.removeLayer(l); });
+    fillLayers = [];
+    grayLayers = [];
+
+    if (!strokes.length) return;
+
+    // === СЕРЫЕ ЗОНЫ ===
+    // Для каждого штриха: буфер, но только на ПРОТИВОПОЛОЖНОЙ стране
+    var grayParts = [];
+    strokes.forEach(function(s){
+      try {
+        var buffered = turf.buffer(s.feature, s.radius / 2, {units:'kilometers'});
+        var ring = turf.difference(buffered, s.feature);
+        if (!ring) return;
+
+        // Куда пускать серую: если штрих на УКР → только РФ; если на РФ → только УКР
+        var targetCountry = (s.country === 'UKR') ? RUS : UKR;
+        // Вырезаем серую только в целевой стране
+        var clippedGray = turf.intersect(ring, targetCountry);
+        if (clippedGray) grayParts.push(clippedGray);
+      } catch(e){}
     });
-    layers = {};
 
-    // ===== СЧИТАЕМ СЖАТЫЕ ЗАЛИВКИ И ОБЪЕДИНЁННЫЕ СЕРЫЕ =====
-    var halfKm = GRAY_RADIUS_KM / 2;
+    if (grayParts.length) {
+      var grayMerged = grayParts[0];
+      for (var i = 1; i < grayParts.length; i++) {
+        try { grayMerged = turf.union(grayMerged, grayParts[i]); } catch(e){}
+      }
+      // Вырезаем заливки из серого
+      strokes.forEach(function(s){
+        try {
+          var diff = turf.difference(grayMerged, s.feature);
+          if (diff) grayMerged = diff;
+        } catch(e){}
+      });
+      var gl = L.geoJSON(grayMerged, {
+        style: { color:'#9ca3af', weight:1, fillColor:'#9ca3af', fillOpacity:0.5, dashArray:'3,3' },
+        interactive: false
+      }).addTo(map);
+      grayLayers.push(gl);
+    }
 
-    var fillByColor = {};   // цвет -> merged сжатая фича
-    var grayAll = [];       // все серые (для слияния)
+    // === ЗАЛИВКИ ===
+    var byColor = { '#dc2626': [], '#2563eb': [] };
+    strokes.forEach(function(s){
+      if (!byColor[s.color]) byColor[s.color] = [];
+      byColor[s.color].push(s.feature);
+    });
 
-    ['#dc2626', '#2563eb'].forEach(function(color){
-      var list = strokes[color] || [];
+    Object.keys(byColor).forEach(function(color){
+      var list = byColor[color];
       if (!list.length) return;
-
-      // Объединяем все штрихи цвета
       var merged = list[0];
       for (var i = 1; i < list.length; i++) {
         try { merged = turf.union(merged, list[i]); } catch(e){}
       }
-
-      // Сжимаем внутрь на halfKm (отрицательный buffer)
-      var shrinked = null;
-      try {
-        shrinked = turf.buffer(merged, -halfKm, {units: 'kilometers'});
-      } catch(e){}
-
-      if (shrinked) {
-        fillByColor[color] = shrinked;
-        // Серая зона вокруг сжатой фичи на halfKm
-        try {
-          var buffered = turf.buffer(shrinked, halfKm, {units: 'kilometers'});
-          var ring = turf.difference(buffered, shrinked);
-          if (ring) grayAll.push(ring);
-        } catch(e){}
-      } else {
-        // Если фича меньше halfKm — она исчезает
-      }
-    });
-
-    // Объединяем все серые в одну
-    var grayMerged = null;
-    if (grayAll.length) {
-      grayMerged = grayAll[0];
-      for (var j = 1; j < grayAll.length; j++) {
-        try { grayMerged = turf.union(grayMerged, grayAll[j]); } catch(e){}
-      }
-    }
-
-    // ===== РИСУЕМ =====
-    // Серая зона — снизу
-    if (grayMerged) {
-      var grayLayer = L.geoJSON(grayMerged, {
-        style: { color:'#9ca3af', weight:1, fillColor:'#9ca3af', fillOpacity:0.55, dashArray:'3,3' },
-        interactive: false
-      }).addTo(map);
-      layers['gray'] = {fill: null, gray: grayLayer};
-    }
-
-    // Заливки цветов — сверху
-    Object.keys(fillByColor).forEach(function(color){
-      var fillLayer = L.geoJSON(fillByColor[color], {
+      var fl = L.geoJSON(merged, {
         style: { color: color, weight: 2, fillColor: color, fillOpacity: 0.7 }
       }).addTo(map);
-      layers['fill_' + color] = {fill: fillLayer, gray: null};
+      fillLayers.push(fl);
     });
   }
 
   // ===== Управление =====
   function undoLast(){
-    var list = strokes[currentColor] || [];
-    if (!list.length) { showHint('Нет штрихов'); return; }
-    list.pop();
+    if (!strokes.length) { showHint('Нет штрихов'); return; }
+    strokes.pop();
     redrawAll();
     saveAll();
   }
 
   function clearAll(){
+    if (!strokes.length) return;
     if (!confirm('Убрать все захваты?')) return;
-    strokes['#dc2626'] = [];
-    strokes['#2563eb'] = [];
+    strokes = [];
     redrawAll();
     saveAll();
   }
