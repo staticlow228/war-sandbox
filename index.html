@@ -43,8 +43,8 @@ body{background:#0f172a;color:#e2e8f0;overflow:hidden;height:100vh}
 <div id="legend" class="hidden">
   <div class="item"><div class="sw" style="background:#3b82f6"></div>Украина</div>
   <div class="item"><div class="sw" style="background:#ef4444"></div>Россия</div>
-  <div class="item"><div class="sw" style="background:#7f1d1d"></div>Оккупация РФ</div>
-  <div class="item"><div class="sw" style="background:#1e3a8a"></div>Освобождено ВСУ</div>
+  <div class="item"><div class="sw" style="background:#7f1d1d"></div>Оккупация</div>
+  <div class="item"><div class="sw" style="background:#1e3a8a"></div>Освобождение</div>
 </div>
 
 <button id="openBtn" class="hidden">🎨</button>
@@ -61,7 +61,7 @@ body{background:#0f172a;color:#e2e8f0;overflow:hidden;height:100vh}
   <button class="act" id="drawBtn">✏️ Включить кисть</button>
   <button class="act danger" id="undoBtn">↩ Убрать последний</button>
   <button class="act danger" id="clearBtn">🗑 Убрать всё</button>
-  <div class="hintTxt" id="hintTxt">Обведи территорию пальцем</div>
+  <div class="hintTxt" id="hintTxt">Обведи территорию</div>
 </div>
 
 <div id="hint"></div>
@@ -78,10 +78,16 @@ body{background:#0f172a;color:#e2e8f0;overflow:hidden;height:100vh}
   var currentPoints = [];
   var currentPreview = null;
   var startMarker = null;
-  var painted = [];
-  var countryPolys = [];  // массив turf-фич стран
   var GRAY_RADIUS_KM = 2;
-  var STORAGE_KEY = 'war_sandbox_paints_v3';
+  var STORAGE_KEY = 'war_sandbox_v5';
+
+  // Объединение стран УКР+РФ — по нему обрезаем
+  var mapUnion = null;
+
+  // Накопленные полигоны: цвет -> массив фич
+  var paintedByColor = {};
+  // Слои: цвет -> {polygon, gray}
+  var layersByColor = {};
 
   function init(){
     map = L.map('map', {zoomControl:true, attributionControl:false}).setView([50, 34], 5);
@@ -93,7 +99,6 @@ body{background:#0f172a;color:#e2e8f0;overflow:hidden;height:100vh}
         brushes.forEach(function(x){ x.classList.remove('active'); });
         b.classList.add('active');
         currentColor = b.getAttribute('data-color');
-        document.getElementById('hintTxt').textContent = (currentColor === '#7f1d1d' ? 'Режим: оккупация РФ' : 'Режим: освобождение ВСУ');
       });
     });
 
@@ -123,22 +128,19 @@ body{background:#0f172a;color:#e2e8f0;overflow:hidden;height:100vh}
   }
 
   // ===== Save/Load =====
-  function save() {
-    try {
-      var data = painted.map(function(p){
-        return { pts: p.pts, color: p.color };
-      });
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-    } catch(e) {}
+  function saveAll() {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(paintedByColor)); } catch(e){}
   }
-  function load() {
+  function loadAll() {
     try {
       var raw = localStorage.getItem(STORAGE_KEY);
       if (!raw) return;
       var data = JSON.parse(raw);
-      if (!Array.isArray(data)) return;
-      data.forEach(function(item){ addPolygon(item.pts, item.color, false); });
-    } catch(e) {}
+      Object.keys(data).forEach(function(color){
+        paintedByColor[color] = data[color];
+        redrawColor(color);
+      });
+    } catch(e){}
   }
 
   // ===== Загрузка карты =====
@@ -155,7 +157,6 @@ body{background:#0f172a;color:#e2e8f0;overflow:hidden;height:100vh}
         });
         if (!ukr || !rus) { document.getElementById('load').textContent = 'Не нашёл страны'; return; }
 
-        // Базовые слои
         L.geoJSON(rus, {style:{color:'#0f172a',weight:1,fillColor:'#ef4444',fillOpacity:0.85}}).addTo(map);
         L.geoJSON(ukr, {style:{color:'#0f172a',weight:1,fillColor:'#3b82f6',fillOpacity:0.85}}).addTo(map);
 
@@ -166,12 +167,12 @@ body{background:#0f172a;color:#e2e8f0;overflow:hidden;height:100vh}
         ];
         L.polygon(crimea, {color:'#0f172a',weight:1,fillColor:'#7f1d1d',fillOpacity:0.95}).addTo(map);
 
-        // Сохраняем turfy-фичи стран для клиппинга
-        countryPolys = [ukr, rus];
+        // Объединение для обрезки
+        try { mapUnion = turf.union(ukr, rus); } catch(e){ mapUnion = ukr; }
 
         try { map.fitBounds(L.geoJSON(ukr).getBounds(), {padding:[20,20]}); } catch(e){}
 
-        load();
+        loadAll();
         document.getElementById('load').style.display = 'none';
         document.getElementById('legend').classList.remove('hidden');
         document.getElementById('panel').classList.remove('hidden');
@@ -187,7 +188,7 @@ body{background:#0f172a;color:#e2e8f0;overflow:hidden;height:100vh}
       btn.textContent = '✖ Стоп';
       btn.classList.add('active');
       map.dragging.disable();
-      showHint('Обведи территорию — линия замкнётся сама');
+      showHint('Обведи территорию');
     } else {
       btn.textContent = '✏️ Включить кисть';
       btn.classList.remove('active');
@@ -202,7 +203,6 @@ body{background:#0f172a;color:#e2e8f0;overflow:hidden;height:100vh}
     currentPoints = [];
   }
 
-  // ===== События рисования =====
   function getLatLng(e) {
     var t = (e.touches && e.touches[0]) || (e.changedTouches && e.changedTouches[0]) || e;
     return map.mouseEventToLatLng(t);
@@ -213,7 +213,6 @@ body{background:#0f172a;color:#e2e8f0;overflow:hidden;height:100vh}
     if (e.touches && e.touches.length > 1) return;
     if (e.button !== undefined && e.button !== 0) return;
     e.preventDefault();
-
     var ll = getLatLng(e);
     currentPoints = [ll];
 
@@ -221,13 +220,11 @@ body{background:#0f172a;color:#e2e8f0;overflow:hidden;height:100vh}
       icon: L.divIcon({
         className: '',
         html: '<div style="font-size:24px;line-height:1;filter:drop-shadow(0 2px 4px #000)">✏️</div>',
-        iconSize: [24,24],
-        iconAnchor: [12,12]
+        iconSize: [24,24], iconAnchor: [12,12]
       }),
       interactive: false
     }).addTo(map);
 
-    // Замкнутая превьюшка (линия туда-обратно)
     currentPreview = L.polygon(currentPoints, {
       color: '#000', weight: 3, opacity: 0.9,
       fillColor: currentColor, fillOpacity: 0.2,
@@ -246,106 +243,121 @@ body{background:#0f172a;color:#e2e8f0;overflow:hidden;height:100vh}
   function handleEnd(e){
     if (!drawMode || !currentPreview) return;
     e.preventDefault();
-
     var pts = currentPoints.slice();
     cancelStroke();
-
-    if (pts.length < 3) {
-      showHint('Слишком коротко — веди палец дальше');
-      return;
-    }
-
+    if (pts.length < 3) { showHint('Слишком коротко'); return; }
     var arr = pts.map(function(ll){ return [ll.lat, ll.lng]; });
-    addPolygon(arr, currentColor, true);
+    addStroke(arr, currentColor);
   }
 
-  // ===== Полигон с обрезкой по границам стран =====
-  function addPolygon(pts, color, shouldSave) {
-    // Формируем GeoJSON-полигон из точек
+  // ===== Добавление штриха с вытеснением =====
+  function addStroke(pts, color) {
+    if (!mapUnion) return;
+
+    // Формируем GeoJSON
     var coords = pts.map(function(p){ return [p[1], p[0]]; });
-    if (coords[0][0] !== coords[coords.length-1][0] || coords[0][1] !== coords[coords.length-1][1]) {
-      coords.push(coords[0]); // замкнуть
-    }
-    var drawnFeature = {
+    var first = coords[0], last = coords[coords.length-1];
+    if (first[0] !== last[0] || first[1] !== last[1]) coords.push([first[0], first[1]]);
+
+    var drawn = {
       type: 'Feature',
       geometry: { type: 'Polygon', coordinates: [coords] },
       properties: {}
     };
 
-    // Обрезаем по каждой стране
-    var pieces = [];
-    countryPolys.forEach(function(country){
-      try {
-        var clipped = turf.intersect(drawnFeature, country);
-        if (clipped) pieces.push(clipped);
-      } catch(e) { console.warn('intersect err', e); }
-    });
+    // Обрезаем по объединению стран
+    var clipped = null;
+    try { clipped = turf.intersect(drawn, mapUnion); } catch(e){}
+    if (!clipped) { showHint('За пределами карты'); return; }
 
-    // Если ни с чем не пересеклось — рисуем как есть (fallback)
-    if (!pieces.length) {
-      pieces.push(drawnFeature);
+    // === ВЫТЕСНЯЕМ ДРУГОЙ ЦВЕТ ===
+    var otherColor = (color === '#7f1d1d') ? '#1e3a8a' : '#7f1d1d';
+    if (paintedByColor[otherColor] && paintedByColor[otherColor].length) {
+      var newList = [];
+      paintedByColor[otherColor].forEach(function(f){
+        try {
+          var diff = turf.difference(f, clipped);
+          if (diff) newList.push(diff);
+        } catch(e) { newList.push(f); }
+      });
+      paintedByColor[otherColor] = newList;
+      redrawColor(otherColor);
     }
 
-    pieces.forEach(function(piece){
-      // Заливка (клип)
-      var polyLayer = L.geoJSON(piece, {
-        style: { color: color, weight: 2, fillColor: color, fillOpacity: 0.75 }
-      }).addTo(map);
+    // === Добавляем к своему цвету ===
+    if (!paintedByColor[color]) paintedByColor[color] = [];
+    paintedByColor[color].push(clipped);
+    redrawColor(color);
 
-      // Серая зона вокруг (по границе страны тоже)
-      var grayLayer = null;
-      try {
-        var buffered = turf.buffer(piece, GRAY_RADIUS_KM, {units:'kilometers'});
-        var ring = turf.difference(buffered, piece);
-        if (ring) {
-          grayLayer = L.geoJSON(ring, {
-            style:{color:'#9ca3af',weight:1,fillColor:'#9ca3af',fillOpacity:0.5,dashArray:'3,3'},
-            interactive:false
-          }).addTo(map);
-        }
-      } catch(e) {}
+    saveAll();
+  }
 
-      painted.push({polygon: polyLayer, gray: grayLayer, pts: pts, color: color});
-    });
+  // ===== Перерисовка одного цвета (union + серый контур) =====
+  function redrawColor(color) {
+    if (layersByColor[color]) {
+      if (layersByColor[color].polygon) map.removeLayer(layersByColor[color].polygon);
+      if (layersByColor[color].gray) map.removeLayer(layersByColor[color].gray);
+      delete layersByColor[color];
+    }
 
-    if (shouldSave !== false) save();
+    var list = paintedByColor[color] || [];
+    if (!list.length) return;
+
+    var merged = list[0];
+    for (var i = 1; i < list.length; i++) {
+      try { merged = turf.union(merged, list[i]); } catch(e){}
+    }
+
+    var polyLayer = L.geoJSON(merged, {
+      style: { color: color, weight: 2, fillColor: color, fillOpacity: 0.85 }
+    }).addTo(map);
+
+    var grayLayer = null;
+    try {
+      var buffered = turf.buffer(merged, GRAY_RADIUS_KM, {units:'kilometers'});
+      var ring = turf.difference(buffered, merged);
+      if (ring) {
+        grayLayer = L.geoJSON(ring, {
+          style:{color:'#9ca3af',weight:1,fillColor:'#9ca3af',fillOpacity:0.45,dashArray:'3,3'},
+          interactive:false
+        }).addTo(map);
+      }
+    } catch(e){}
+
+    layersByColor[color] = {polygon: polyLayer, gray: grayLayer};
   }
 
   // ===== Управление =====
   function undoLast(){
-    if (!painted.length) return;
-    // Удаляем ВСЕ куски последнего штриха (pts одинаковые)
-    var lastPts = painted[painted.length-1].pts;
-    var key = JSON.stringify(lastPts);
-    var toRemove = painted.filter(function(p){ return JSON.stringify(p.pts) === key; });
-    toRemove.forEach(function(p){
-      if (p.polygon) map.removeLayer(p.polygon);
-      if (p.gray) map.removeLayer(p.gray);
-    });
-    painted = painted.filter(function(p){ return JSON.stringify(p.pts) !== key; });
-    save();
+    var list = paintedByColor[currentColor] || [];
+    if (!list.length) { showHint('Нет штрихов'); return; }
+    list.pop();
+    if (!list.length) delete paintedByColor[currentColor];
+    redrawColor(currentColor);
+    saveAll();
   }
 
   function clearAll(){
-    if (!painted.length) return;
     if (!confirm('Убрать все захваты?')) return;
-    painted.forEach(function(p){
-      if (p.polygon) map.removeLayer(p.polygon);
-      if (p.gray) map.removeLayer(p.gray);
+    Object.keys(layersByColor).forEach(function(color){
+      var l = layersByColor[color];
+      if (l.polygon) map.removeLayer(l.polygon);
+      if (l.gray) map.removeLayer(l.gray);
     });
-    painted = [];
-    save();
+    layersByColor = {};
+    paintedByColor = {};
+    saveAll();
   }
 
   function showHint(t){
     var h = document.getElementById('hint');
     h.textContent = t;
     h.style.display = 'block';
-    setTimeout(function(){ h.style.display = 'none'; }, 2500);
+    setTimeout(function(){ h.style.display = 'none'; }, 2000);
   }
 
   init();
 })();
 </script>
 </body>
-  </html>
+</html>
