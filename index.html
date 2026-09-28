@@ -605,4 +605,77 @@ function addStroke(pts, color) {
         showToast('📍 ' + n + ' перешёл под контроль ' + sideName, color);
       });
     } else {
-      showToast('📍 ' + cap
+      showToast('📍 ' + captured.length + ' НП перешли под контроль ' + sideName, color);
+      }
+    }
+
+    redrawAll();
+    saveAll();
+  }
+
+  function showToast(text, color) {
+    var cont = document.getElementById('toasts');
+    var el = document.createElement('div');
+    el.className = 'toast ' + (color === '#dc2626' ? 'red' : 'blue');
+    el.textContent = text;
+    cont.appendChild(el);
+    setTimeout(function(){ el.remove(); }, 3500);
+    if (cont.children.length > 5) cont.removeChild(cont.firstChild);
+  }
+
+  function redrawAll() {
+    fillLayers.forEach(function(l){ map.removeLayer(l); });
+    fillLayers = [];
+    if (!strokes.length) return;
+    var byColor = { '#dc2626': [], '#2563eb': [] };
+    strokes.forEach(function(s){
+      if (!byColor[s.color]) byColor[s.color] = [];
+      byColor[s.color].push(s.feature);
+    });
+    Object.keys(byColor).forEach(function(color){
+      var list = byColor[color];
+      if (!list.length) return;
+      var merged = list[0];
+      for (var i = 1; i < list.length; i++) {
+        try { merged = turf.union(merged, list[i]); } catch(e){}
+      }
+      var fl = L.geoJSON(merged, {
+        style: {
+          color: '#000000',
+          weight: 2.5,
+          opacity: 1,
+          fillColor: color,
+          fillOpacity: 0.75
+        }
+      }).addTo(map);
+      fillLayers.push(fl);
+    });
+  }
+
+  function undoLast(){
+    if (!strokes.length) { showHint('Нет штрихов'); return; }
+    strokes.pop();
+    redrawAll();
+    saveAll();
+  }
+
+  function clearAll(){
+    if (!strokes.length) return;
+    if (!confirm('Убрать всё?')) return;
+    strokes = [];
+    redrawAll();
+    saveAll();
+  }
+
+  function showHint(t){
+    var h = document.getElementById('hint');
+    h.textContent = t;
+    h.style.display = 'block';
+    setTimeout(function(){ h.style.display = 'none'; }, 2000);
+  }
+
+  init();
+})();
+</script>
+</body>
+</html>
