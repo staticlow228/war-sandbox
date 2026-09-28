@@ -41,6 +41,13 @@ body{background:#0f172a;color:#e2e8f0;overflow:hidden;height:100vh}
 #legend .sw{width:14px;height:14px;border-radius:3px;border:1px solid #475569}
 
 #hint{position:absolute;top:60px;left:50%;transform:translateX(-50%);background:rgba(250,204,21,.95);color:#111;padding:8px 14px;border-radius:8px;font-size:12px;font-weight:600;z-index:2000;max-width:80vw;text-align:center;display:none}
+
+/* Уведомления снизу */
+#toasts{position:absolute;bottom:120px;left:50%;transform:translateX(-50%);z-index:2500;display:flex;flex-direction:column;gap:6px;align-items:center;max-width:90vw;pointer-events:none}
+.toast{padding:10px 16px;border-radius:10px;font-size:13px;font-weight:700;box-shadow:0 4px 20px rgba(0,0,0,0.5);animation:pop 0.3s ease;white-space:nowrap;max-width:90vw;overflow:hidden;text-overflow:ellipsis}
+.toast.red{background:rgba(220,38,38,0.95);color:#fff;border:2px solid #fca5a5}
+.toast.blue{background:rgba(37,99,235,0.95);color:#fff;border:2px solid #93c5fd}
+@keyframes pop{0%{transform:scale(0.7);opacity:0}100%{transform:scale(1);opacity:1}}
 </style>
 </head>
 <body>
@@ -80,6 +87,7 @@ body{background:#0f172a;color:#e2e8f0;overflow:hidden;height:100vh}
 </div>
 
 <div id="hint"></div>
+<div id="toasts"></div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
@@ -93,346 +101,508 @@ body{background:#0f172a;color:#e2e8f0;overflow:hidden;height:100vh}
   var currentPoints = [];
   var currentPreview = null;
   var startMarker = null;
-  var STORAGE_KEY = 'war_sandbox_v20';
+  var STORAGE_KEY = 'war_sandbox_v22';
 
   var UKR = null, RUS = null;
 
-  var strokes = [];
-  var fillLayers = [];
-  var baseLayer = null;
+  // ===== ГОРОДА И ПОСЁЛКИ =====
+  var CITIES = [  // === ОБЛАСТНЫЕ ЦЕНТРЫ УКРАИНЫ ===
+  { name: "Киев", lat: 50.45, lon: 30.52 },
+  { name: "Харьков", lat: 49.99, lon: 36.23 },
+  { name: "Одесса", lat: 46.48, lon: 30.73 },
+  { name: "Днепр", lat: 48.45, lon: 35.05 },
+  { name: "Донецк", lat: 48.02, lon: 37.80 },
+  { name: "Запорожье", lat: 47.84, lon: 35.14 },
+  { name: "Львов", lat: 49.84, lon: 24.03 },
+  { name: "Кривой Рог", lat: 47.91, lon: 33.39 },
+  { name: "Николаев", lat: 46.97, lon: 32.00 },
+  { name: "Мариуполь", lat: 47.09, lon: 37.55 },
+  { name: "Луганск", lat: 48.57, lon: 39.30 },
+  { name: "Винница", lat: 49.23, lon: 28.47 },
+  { name: "Макеевка", lat: 48.05, lon: 37.96 },
+  { name: "Севастополь", lat: 44.62, lon: 33.53 },
+  { name: "Симферополь", lat: 44.95, lon: 34.10 },
+  { name: "Херсон", lat: 46.64, lon: 32.61 },
+  { name: "Полтава", lat: 49.59, lon: 34.55 },
+  { name: "Чернигов", lat: 51.50, lon: 31.29 },
+  { name: "Черкассы", lat: 49.44, lon: 32.06 },
+  { name: "Житомир", lat: 50.25, lon: 28.66 },
+  { name: "Сумы", lat: 50.91, lon: 34.80 },
+  { name: "Хмельницкий", lat: 49.42, lon: 26.99 },
+  { name: "Черновцы", lat: 48.29, lon: 25.94 },
+  { name: "Горловка", lat: 48.30, lon: 38.05 },
+  { name: "Ровно", lat: 50.62, lon: 26.25 },
+  { name: "Каменское", lat: 48.51, lon: 34.62 },
+  { name: "Кропивницкий", lat: 48.51, lon: 32.26 },
+  { name: "Ивано-Франковск", lat: 48.92, lon: 24.71 },
+  { name: "Кременчуг", lat: 49.07, lon: 33.42 },
+  { name: "Тернополь", lat: 49.55, lon: 25.60 },
+  { name: "Луцк", lat: 50.75, lon: 25.34 },
+  { name: "Белая Церковь", lat: 49.80, lon: 30.12 },
+  { name: "Краматорск", lat: 48.73, lon: 37.58 },
+  { name: "Мелитополь", lat: 46.84, lon: 35.37 },
+  { name: "Керчь", lat: 45.35, lon: 36.47 },
+  { name: "Ужгород", lat: 48.62, lon: 22.29 },
+  { name: "Бердянск", lat: 46.76, lon: 36.79 },
+  { name: "Никополь", lat: 47.57, lon: 34.40 },
+  { name: "Славянск", lat: 48.85, lon: 37.62 },
+  { name: "Бровары", lat: 50.51, lon: 30.79 },
+  { name: "Павлоград", lat: 48.52, lon: 35.87 },
 
-  function init(){
-    map = L.map('map', {zoomControl:true, attributionControl:false}).setView([50, 34], 6);
+  // === СУМСКАЯ ОБЛАСТЬ ===
+  { name: "Конотоп", lat: 51.24, lon: 33.20 },
+  { name: "Шостка", lat: 51.87, lon: 33.48 },
+  { name: "Ахтырка", lat: 50.31, lon: 34.90 },
+  { name: "Ромны", lat: 50.75, lon: 33.47 },
+  { name: "Глухов", lat: 51.68, lon: 33.91 },
+  { name: "Тростянец", lat: 50.48, lon: 34.97 },
+  { name: "Лебедин", lat: 50.58, lon: 34.48 },
+  { name: "Недригайлов", lat: 50.83, lon: 33.88 },
+  { name: "Кролевец", lat: 51.55, lon: 33.38 },
+  { name: "Путивль", lat: 51.34, lon: 33.87 },
+  { name: "Белополье", lat: 51.15, lon: 34.30 },
+  { name: "Липовая Долина", lat: 50.55, lon: 33.85 },
+  { name: "Краснополье", lat: 50.79, lon: 35.27 },
+  { name: "Великая Писаревка", lat: 50.42, lon: 35.48 },
+  { name: "Суджа", lat: 51.19, lon: 35.27 },
 
-    setMapLayer('voyager');
+  // === ДОНЕЦКАЯ ОБЛАСТЬ ===
+  { name: "Бахмут", lat: 48.60, lon: 38.00 },
+  { name: "Авдеевка", lat: 48.14, lon: 37.74 },
+  { name: "Угледар", lat: 47.78, lon: 37.27 },
+  { name: "Торецк", lat: 48.40, lon: 37.85 },
+  { name: "Красногоровка", lat: 48.13, lon: 37.55 },
+  { name: "Марьинка", lat: 47.95, lon: 37.50 },
+  { name: "Курахово", lat: 47.98, lon: 37.28 },
+  { name: "Селидово", lat: 48.15, lon: 37.30 },
+  { name: "Покровск", lat: 48.28, lon: 37.18 },
+  { name: "Мирноград", lat: 48.30, lon: 37.26 },
+  { name: "Константиновка", lat: 48.53, lon: 37.71 },
+  { name: "Дружковка", lat: 48.62, lon: 37.53 },
+  { name: "Лиман", lat: 48.98, lon: 37.80 },
+  { name: "Николаевка", lat: 48.85, lon: 37.77 },
+  { name: "Святогорск", lat: 49.03, lon: 37.57 },
+  { name: "Изюм", lat: 49.21, lon: 37.25 },
+  { name: "Купянск", lat: 49.71, lon: 37.62 },
+  { name: "Харцызск", lat: 48.04, lon: 38.15 },
+  { name: "Шахтёрск", lat: 48.05, lon: 38.44 },
+  { name: "Ясиноватая", lat: 48.13, lon: 37.86 },
+  { name: "Дзержинск", lat: 48.40, lon: 37.85 },
+  { name: "Енакиево", lat: 48.23, lon: 38.21 },
+  { name: "Снежное", lat: 48.03, lon: 38.77 },
+  { name: "Торез", lat: 48.03, lon: 38.62 },
+  { name: "Шахты", lat: 47.71, lon: 38.16 },
+  { name: "Красный Лиман", lat: 48.98, lon: 37.80 },
+  { name: "Доброполье", lat: 48.47, lon: 37.08 },
+  { name: "Белозёрское", lat: 48.53, lon: 37.06 },
+  { name: "Красноармейск", lat: 48.28, lon: 37.18 },
+  { name: "Новогродовка", lat: 48.20, lon: 37.34 },
+  { name: "Горняк", lat: 48.05, lon: 37.37 },
+  { name: "Украинск", lat: 48.10, lon: 37.37 },
+  { name: "Кураховка", lat: 47.98, lon: 37.28 },
+  { name: "Соледар", lat: 48.68, lon: 38.06 },
+  { name: "Северск", lat: 48.87, lon: 38.09 },
+  { name: "Часов Яр", lat: 48.59, lon: 37.83 },
+  { name: "Клещеевка", lat: 48.55, lon: 37.90 },
+  { name: "Андреевка", lat: 48.53, lon: 37.92 },
+  { name: "Курдюмовка", lat: 48.45, lon: 37.95 },
+  { name: "Озаряновка", lat: 48.51, lon: 37.86 },
+  { name: "Майорск", lat: 48.41, lon: 37.97 },
+  { name: "Южное", lat: 48.41, lon: 37.83 },
+  { name: "Зализное", lat: 48.43, lon: 37.90 },
+  { name: "Пивничное", lat: 48.40, lon: 37.85 },
+  { name: "Ленинское", lat: 48.43, lon: 37.85 },
+  { name: "Первомайское", lat: 48.36, lon: 37.85 },
+  { name: "Водяное", lat: 48.30, lon: 37.66 },
+  { name: "Опытное", lat: 48.14, lon: 37.66 },
+  { name: "Пески", lat: 48.10, lon: 37.68 },
+  { name: "Водяное", lat: 48.10, lon: 37.66 },
+  { name: "Тоненькое", lat: 48.13, lon: 37.60 },
+  { name: "Северное", lat: 48.16, lon: 37.65 },
+  { name: "Невельское", lat: 48.08, lon: 37.60 },
 
-    var brushes = document.querySelectorAll('.brush');
-    brushes.forEach(function(b){
-      b.addEventListener('click', function(){
-        brushes.forEach(function(x){ x.classList.remove('active'); });
-        b.classList.add('active');
-        currentColor = b.getAttribute('data-color');
-      });
+  // === ЛУГАНСКАЯ ОБЛАСТЬ ===
+  { name: "Северодонецк", lat: 48.95, lon: 38.49 },
+  { name: "Лисичанск", lat: 48.90, lon: 38.44 },
+  { name: "Рубежное", lat: 49.01, lon: 38.38 },
+  { name: "Кременная", lat: 49.05, lon: 38.22 },
+  { name: "Сватово", lat: 49.41, lon: 38.15 },
+  { name: "Старобельск", lat: 49.28, lon: 38.90 },
+  { name: "Счастье", lat: 48.74, lon: 39.23 },
+  { name: "Алчевск", lat: 48.47, lon: 38.80 },
+  { name: "Красный Луч", lat: 48.13, lon: 38.94 },
+  { name: "Стаханов", lat: 48.57, lon: 38.65 },
+  { name: "Свердловск", lat: 48.08, lon: 39.65 },
+  { name: "Краснодон", lat: 48.30, lon: 39.74 },
+  { name: "Попасная", lat: 48.63, lon: 38.38 },
+  { name: "Золотое", lat: 48.75, lon: 38.47 },
+  { name: "Горское", lat: 48.75, lon: 38.55 },
+  { name: "Первомайск", lat: 48.63, lon: 38.55 },
+  { name: "Кировск", lat: 48.63, lon: 38.63 },
+  { name: "Брянка", lat: 48.51, lon: 38.65 },
+  { name: "Кировск", lat: 48.63, lon: 38.63 },
+  { name: "Перевальск", lat: 48.44, lon: 38.63 },
+  { name: "Артёмовск", lat: 48.60, lon: 38.00 },
+  { name: "Зимогорье", lat: 48.55, lon: 38.85 },
+  { name: "Славяносербск", lat: 48.68, lon: 38.98 },
+  { name: "Лутугино", lat: 48.40, lon: 39.22 },
+  { name: "Антрацит", lat: 48.12, lon: 39.09 },
+  { name: "Ровеньки", lat: 48.08, lon: 39.36 },
+  { name: "Свердловск", lat: 48.08, lon: 39.65 },
+  { name: "Червонопартизанск", lat: 48.05, lon: 39.75 },
+  { name: "Молодогвардейск", lat: 48.32, lon: 39.65 },
+  { name: "Суходольск", lat: 48.40, lon: 39.65 },
+  { name: "Краснодон", lat: 48.30, lon: 39.74 },
+  { name: "Станично-Луганское", lat: 48.65, lon: 39.50 },
+  { name: "Новоайдар", lat: 48.98, lon: 38.98 },
+  { name: "Станица Луганская", lat: 48.68, lon: 39.51 },
+  { name: "Беловодск", lat: 49.20, lon: 39.59 },
+  { name: "Марковка", lat: 49.53, lon: 39.55 },
+  { name: "Меловое", lat: 49.38, lon: 40.13 },
+  { name: "Новопсков", lat: 49.55, lon: 39.13 },
+  { name: "Белокуракино", lat: 49.53, lon: 38.72 },
+  { name: "Троицкое", lat: 49.92, lon: 38.28 },
+  { name: "Сватово", lat: 49.41, lon: 38.15 },
+  { name: "Кременная", lat: 49.05, lon: 38.22 },
+
+  // === ХАРЬКОВСКАЯ ОБЛАСТЬ ===
+  { name: "Балаклея", lat: 49.46, lon: 36.86 },
+  { name: "Чугуев", lat: 49.84, lon: 36.68 },
+  { name: "Лозовая", lat: 48.89, lon: 36.32 },
+  { name: "Первомайский", lat: 49.39, lon: 36.21 },
+  { name: "Волчанск", lat: 50.29, lon: 37.50 },
+  { name: "Изюм", lat: 49.21, lon: 37.25 },
+  { name: "Купянск", lat: 49.71, lon: 37.62 },
+  { name: "Барвенково", lat: 48.90, lon: 36.95 },
+
+  // === ЗАПОРОЖСКАЯ ОБЛАСТЬ ===
+  { name: "Энергодар", lat: 47.50, lon: 34.66 },
+  { name: "Токмак", lat: 47.25, lon: 35.71 },
+  { name: "Пологи", lat: 47.48, lon: 36.26 },
+  { name: "Гуляйполе", lat: 47.66, lon: 36.26 },
+  { name: "Васильевка", lat: 47.44, lon: 35.28 },
+  { name: "Орехов", lat: 47.57, lon: 35.79 },
+  { name: "Каменка-Днепровская", lat: 47.48, lon: 34.42 },
+  { name: "Днепрорудное", lat: 47.38, lon: 34.98 },
+  { name: "Молочанск", lat: 47.13, lon: 35.65 },
+  { name: "Приморск", lat: 46.73, lon: 36.35 },
+  { name: "Розовка", lat: 47.40, lon: 36.71 },
+
+  // === ХЕРСОНСКАЯ ОБЛАСТЬ ===
+  { name: "Новая Каховка", lat: 46.75, lon: 33.35 },
+  { name: "Каховка", lat: 46.81, lon: 33.48 },
+  { name: "Геническ", lat: 46.17, lon: 34.80 },
+  { name: "Берислав", lat: 46.84, lon: 33.42 },
+  { name: "Скадовск", lat: 46.12, lon: 32.91 },
+  { name: "Голая Пристань", lat: 46.51, lon: 32.52 },
+  { name: "Алёшки", lat: 46.62, lon: 32.72 },
+  { name: "Новотроицкое", lat: 46.35, lon: 34.33 },
+  { name: "Великая Лепетиха", lat: 47.18, lon: 33.93 },
+  { name: "Великая Александровка", lat: 47.32, lon: 33.30 },
+  { name: "Чаплынка", lat: 46.36, lon: 33.54 },
+  { name: "Новоалексеевка", lat: 46.43, lon: 33.85 },
+  { name: "Ивановка", lat: 46.72, lon: 34.55 },
+  { name: "Нижние Серогозы", lat: 46.85, lon: 34.42 },
+
+  // === ДРУГИЕ ОБЛАСТИ ===
+  { name: "Ковель", lat: 51.21, lon: 24.71 },
+  { name: "Коломыя", lat: 48.53, lon: 25.04 },
+  { name: "Умань", lat: 48.75, lon: 30.22 },
+  { name: "Александрия", lat: 48.67, lon: 33.11 },
+  { name: "Мукачево", lat: 48.44, lon: 22.72 },
+  { name: "Дрогобыч", lat: 49.35, lon: 23.50 },
+  { name: "Стрый", lat: 49.26, lon: 23.85 },
+  { name: "Калуш", lat: 49.02, lon: 24.36 },
+  { name: "Каменец-Подольский", lat: 48.68, lon: 26.58 },
+  { name: "Нежин", lat: 51.04, lon: 31.88 },
+  { name: "Прилуки", lat: 50.59, lon: 32.38 },
+  { name: "Лубны", lat: 50.02, lon: 32.99 },
+  { name: "Миргород", lat: 49.97, lon: 33.61 }
+];
+
+var cityOwners = {};
+var strokes = [];
+var fillLayers = [];
+var baseLayer = null;
+var cityMarkers = [];
+
+function init(){
+  map = L.map('map', {zoomControl:true, attributionControl:false}).setView([50, 34], 6);
+  setMapLayer('voyager');
+
+  var brushes = document.querySelectorAll('.brush');
+  brushes.forEach(function(b){
+    b.addEventListener('click', function(){
+      brushes.forEach(function(x){ x.classList.remove('active'); });
+      b.classList.add('active');
+      currentColor = b.getAttribute('data-color');
     });
+  });
 
-    document.querySelectorAll('.mapBtn').forEach(function(btn){
-      btn.addEventListener('click', function(){
-        document.querySelectorAll('.mapBtn').forEach(function(x){ x.classList.remove('active'); });
-        btn.classList.add('active');
-        setMapLayer(btn.getAttribute('data-map'));
-      });
-    });
-
-    document.getElementById('drawBtn').addEventListener('click', toggleDraw);
-    document.getElementById('undoBtn').addEventListener('click', undoLast);
-    document.getElementById('clearBtn').addEventListener('click', clearAll);
-    document.getElementById('closeBtn').addEventListener('click', function(){
-      document.getElementById('panel').classList.add('hidden');
-      document.getElementById('openBtn').classList.remove('hidden');
-    });
-    document.getElementById('openBtn').addEventListener('click', function(){
-      document.getElementById('panel').classList.remove('hidden');
-      document.getElementById('openBtn').classList.add('hidden');
-    });
-
-    var container = map.getContainer();
-    container.addEventListener('touchstart', handleStart, {passive:false});
-    container.addEventListener('touchmove', handleMove, {passive:false});
-    container.addEventListener('touchend', handleEnd, {passive:false});
-    container.addEventListener('touchcancel', handleEnd, {passive:false});
-    container.addEventListener('mousedown', handleStart);
-    container.addEventListener('mousemove', handleMove);
-    container.addEventListener('mouseup', handleEnd);
-    container.addEventListener('mouseleave', handleEnd);
-
-    loadData();
-  }
-
-  function setMapLayer(type) {
-    if (baseLayer) { map.removeLayer(baseLayer); baseLayer = null; }
-
-    var url, opts = {};
-    if (type === 'voyager') {
-      url = 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
-      opts.maxZoom = 20; opts.subdomains = 'abcd';
-    } else if (type === 'osm') {
-      url = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
-      opts.maxZoom = 19;
-    } else if (type === 'topo') {
-      url = 'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png';
-      opts.maxZoom = 17; opts.subdomains = 'abc';
-    } else if (type === 'dark') {
-      url = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
-      opts.maxZoom = 20; opts.subdomains = 'abcd';
-    }
-
-    baseLayer = L.tileLayer(url, opts).addTo(map);
-    fillLayers.forEach(function(l){ if (map.hasLayer(l)) l.bringToFront(); });
-  }
-
-  function saveAll() {
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(strokes)); } catch(e){}
-  }
-  function loadAll() {
-    try {
-      var raw = localStorage.getItem(STORAGE_KEY);
-      if (!raw) return;
-      var data = JSON.parse(raw);
-      if (Array.isArray(data)) strokes = data;
-    } catch(e){}
-  }
-
-  function loadData(){
-    document.getElementById('load').textContent = 'Загрузка границ...';
-
-    var pUkr = fetch('https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_10m_admin_0_countries.geojson')
-      .then(function(r){ return r.json(); })
-      .then(function(data){
-        return data.features.find(function(f){
-          var code = f.properties.ADM0_A3 || f.properties.adm0_a3 || '';
-          return code === 'UKR';
-        });
-      });
-
-    var pRus = fetch('https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_110m_admin_0_countries.geojson')
-      .then(function(r){ return r.json(); })
-      .then(function(data){
-        return data.features.find(function(f){
-          var code = f.properties.ADM0_A3 || f.properties.adm0_a3 || '';
-          return code === 'RUS';
-        });
-      });
-
-    Promise.all([pUkr, pRus])
-      .then(function(res){
-        UKR = res[0];
-        RUS = res[1];
-        if (!UKR || !RUS) { document.getElementById('load').textContent = 'Не нашёл страны'; return; }
-
-        L.geoJSON(RUS, {style:{color:'#000000',weight:2,fillOpacity:0,opacity:0.6}, interactive:false}).addTo(map);
-        L.geoJSON(UKR, {style:{color:'#000000',weight:2.5,fillOpacity:0,opacity:0.9}, interactive:false}).addTo(map);
-
-        try { map.fitBounds(L.geoJSON(UKR).getBounds(), {padding:[20,20]}); } catch(e){}
-
-        loadAll();
-        redrawAll();
-        document.getElementById('load').style.display = 'none';
-        document.getElementById('legend').classList.remove('hidden');
-        document.getElementById('panel').classList.remove('hidden');
-      })
-      .catch(function(e){ document.getElementById('load').textContent = 'Ошибка: ' + e.message; });
-  }
-
-  function toggleDraw(){
-    drawMode = !drawMode;
-    var btn = document.getElementById('drawBtn');
-    if (drawMode) {
-      btn.textContent = '✖ Стоп';
+  document.querySelectorAll('.mapBtn').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      document.querySelectorAll('.mapBtn').forEach(function(x){ x.classList.remove('active'); });
       btn.classList.add('active');
-      map.dragging.disable();
-    } else {
-      btn.textContent = '✏️ Включить кисть';
-      btn.classList.remove('active');
-      map.dragging.enable();
-      cancelStroke();
-    }
+      setMapLayer(btn.getAttribute('data-map'));
+    });
+  });
+
+  document.getElementById('drawBtn').addEventListener('click', toggleDraw);
+  document.getElementById('undoBtn').addEventListener('click', undoLast);
+  document.getElementById('clearBtn').addEventListener('click', clearAll);
+  document.getElementById('closeBtn').addEventListener('click', function(){
+    document.getElementById('panel').classList.add('hidden');
+    document.getElementById('openBtn').classList.remove('hidden');
+  });
+  document.getElementById('openBtn').addEventListener('click', function(){
+    document.getElementById('panel').classList.remove('hidden');
+    document.getElementById('openBtn').classList.add('hidden');
+  });
+
+  var container = map.getContainer();
+  container.addEventListener('touchstart', handleStart, {passive:false});
+  container.addEventListener('touchmove', handleMove, {passive:false});
+  container.addEventListener('touchend', handleEnd, {passive:false});
+  container.addEventListener('touchcancel', handleEnd, {passive:false});
+  container.addEventListener('mousedown', handleStart);
+  container.addEventListener('mousemove', handleMove);
+  container.addEventListener('mouseup', handleEnd);
+  container.addEventListener('mouseleave', handleEnd);
+
+  loadData();
+}
+
+function setMapLayer(type) {
+  if (baseLayer) { map.removeLayer(baseLayer); baseLayer = null; }
+  var url, opts = {};
+  if (type === 'voyager') {
+    url = 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
+    opts.maxZoom = 20; opts.subdomains = 'abcd';
+  } else if (type === 'osm') {
+    url = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+    opts.maxZoom = 19;
+  } else if (type === 'topo') {
+    url = 'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png';
+    opts.maxZoom = 17; opts.subdomains = 'abc';
+  } else if (type === 'dark') {
+    url = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
+    opts.maxZoom = 20; opts.subdomains = 'abcd';
   }
+  baseLayer = L.tileLayer(url, opts).addTo(map);
+  fillLayers.forEach(function(l){ if (map.hasLayer(l)) l.bringToFront(); });
+  cityMarkers.forEach(function(m){ if (map.hasLayer(m)) m.bringToFront(); });
+}
 
-  function cancelStroke() {
-    if (currentPreview) { map.removeLayer(currentPreview); currentPreview = null; }
-    if (startMarker) { map.removeLayer(startMarker); startMarker = null; }
-    currentPoints = [];
-  }
+function saveAll() {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(strokes)); } catch(e){}
+}
+function loadAll() {
+  try {
+    var raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return;
+    var data = JSON.parse(raw);
+    if (Array.isArray(data)) strokes = data;
+  } catch(e){}
+}
 
-  function getLatLng(e) {
-    var t = (e.touches && e.touches[0]) || (e.changedTouches && e.changedTouches[0]) || e;
-    return map.mouseEventToLatLng(t);
-  }
+function loadData(){
+  document.getElementById('load').textContent = 'Загрузка границ...';
+  var pUkr = fetch('https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_10m_admin_0_countries.geojson')
+    .then(function(r){ return r.json(); })
+    .then(function(data){
+      return data.features.find(function(f){
+        var c = f.properties.ADM0_A3 || f.properties.adm0_a3 || '';
+        return c === 'UKR';
+      });
+    });
+  var pRus = fetch('https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_110m_admin_0_countries.geojson')
+    .then(function(r){ return r.json(); })
+    .then(function(data){
+      return data.features.find(function(f){
+        var c = f.properties.ADM0_A3 || f.properties.adm0_a3 || '';
+        return c === 'RUS';
+      });
+    });
+  Promise.all([pUkr, pRus]).then(function(res){
+    UKR = res[0]; RUS = res[1];
+    if (!UKR || !RUS) { document.getElementById('load').textContent = 'Не нашёл'; return; }
+    L.geoJSON(RUS, {style:{color:'#000000',weight:2,fillOpacity:0,opacity:0.6}, interactive:false}).addTo(map);
+    L.geoJSON(UKR, {style:{color:'#000000',weight:2.5,fillOpacity:0,opacity:0.9}, interactive:false}).addTo(map);
+    try { map.fitBounds(L.geoJSON(UKR).getBounds(), {padding:[20,20]}); } catch(e){}
+    drawCities();
+    loadAll();
+    redrawAll();
+    document.getElementById('load').style.display = 'none';
+    document.getElementById('legend').classList.remove('hidden');
+    document.getElementById('panel').classList.remove('hidden');
+  }).catch(function(e){ document.getElementById('load').textContent = 'Ошибка: ' + e.message; });
+}
 
-  function handleStart(e){
-    if (!drawMode) return;
-    if (e.touches && e.touches.length > 1) return;
-    if (e.button !== undefined && e.button !== 0) return;
-    e.preventDefault();
-    var ll = getLatLng(e);
-    currentPoints = [ll];
-
-    startMarker = L.marker(ll, {
-      icon: L.divIcon({
-        className: '',
-        html: '<div style="font-size:24px;line-height:1;filter:drop-shadow(0 2px 4px #000)">✏️</div>',
-        iconSize: [24,24], iconAnchor: [12,12]
-      }),
-      interactive: false
+function drawCities() {
+  CITIES.forEach(function(c) {
+    var marker = L.circleMarker([c.lat, c.lon], {
+      radius: 2.5, color: '#ffffff', weight: 1,
+      fillColor: '#000000', fillOpacity: 0.6, interactive: false
     }).addTo(map);
+    cityMarkers.push(marker);
+  });
+}
 
-    currentPreview = L.polygon(currentPoints, {
-      color: '#facc15', weight: 3, opacity: 0.9,
-      fillColor: currentColor, fillOpacity: 0.2,
-      dashArray: '5,5'
-    }).addTo(map);
-  }
-
-  function handleMove(e){
-    if (!drawMode || !currentPreview) return;
-    e.preventDefault();
-    var ll = getLatLng(e);
-    currentPoints.push(ll);
-    currentPreview.setLatLngs(currentPoints);
-  }
-
-  function handleEnd(e){
-    if (!drawMode || !currentPreview) return;
-    e.preventDefault();
-    var pts = currentPoints.slice();
+function toggleDraw(){
+  drawMode = !drawMode;
+  var btn = document.getElementById('drawBtn');
+  if (drawMode) {
+    btn.textContent = '✖ Стоп';
+    btn.classList.add('active');
+    map.dragging.disable();
+  } else {
+    btn.textContent = '✏️ Включить кисть';
+    btn.classList.remove('active');
+    map.dragging.enable();
     cancelStroke();
-    if (pts.length < 3) { showHint('Слишком коротко'); return; }
-    var arr = pts.map(function(ll){ return [ll.lat, ll.lng]; });
-    addStroke(arr, currentColor);
   }
+}
 
-  function intersectWithColor(feature, targetColor) {
-    var parts = [];
-    strokes.forEach(function(s){
-      if (s.color !== targetColor) return;
-      try {
-        var inter = turf.intersect(feature, s.feature);
-        if (inter) parts.push(inter);
-      } catch(e){}
-    });
-    if (!parts.length) return null;
-    var merged = parts[0];
-    for (var i = 1; i < parts.length; i++) {
-      try { merged = turf.union(merged, parts[i]); } catch(e){}
-    }
-    return merged;
-  }
+function cancelStroke() {
+  if (currentPreview) { map.removeLayer(currentPreview); currentPreview = null; }
+  if (startMarker) { map.removeLayer(startMarker); startMarker = null; }
+  currentPoints = [];
+}
 
-  function detectCountry(feature) {
+function getLatLng(e) {
+  var t = (e.touches && e.touches[0]) || (e.changedTouches && e.changedTouches[0]) || e;
+  return map.mouseEventToLatLng(t);
+}
+
+function handleStart(e){
+  if (!drawMode) return;
+  if (e.touches && e.touches.length > 1) return;
+  if (e.button !== undefined && e.button !== 0) return;
+  e.preventDefault();
+  var ll = getLatLng(e);
+  currentPoints = [ll];
+  startMarker = L.marker(ll, {
+    icon: L.divIcon({
+      className: '',
+      html: '<div style="font-size:24px;line-height:1;filter:drop-shadow(0 2px 4px #000)">✏️</div>',
+      iconSize: [24,24], iconAnchor: [12,12]
+    }),
+    interactive: false
+  }).addTo(map);
+  currentPreview = L.polygon(currentPoints, {
+    color: '#facc15', weight: 3, opacity: 0.9,
+    fillColor: currentColor, fillOpacity: 0.2, dashArray: '5,5'
+  }).addTo(map);
+}
+
+function handleMove(e){
+  if (!drawMode || !currentPreview) return;
+  e.preventDefault();
+  var ll = getLatLng(e);
+  currentPoints.push(ll);
+  currentPreview.setLatLngs(currentPoints);
+}
+
+function handleEnd(e){
+  if (!drawMode || !currentPreview) return;
+  e.preventDefault();
+  var pts = currentPoints.slice();
+  cancelStroke();
+  if (pts.length < 3) { showHint('Слишком коротко'); return; }
+  var arr = pts.map(function(ll){ return [ll.lat, ll.lng]; });
+  addStroke(arr, currentColor);
+}
+
+function intersectWithColor(feature, targetColor) {
+  var parts = [];
+  strokes.forEach(function(s){
+    if (s.color !== targetColor) return;
     try {
-      var iUkr = turf.intersect(feature, UKR);
-      var iRus = turf.intersect(feature, RUS);
-      var aUkr = iUkr ? turf.area(iUkr) : 0;
-      var aRus = iRus ? turf.area(iRus) : 0;
-      if (aUkr > aRus) return 'UKR';
-      if (aRus > aUkr) return 'RUS';
+      var inter = turf.intersect(feature, s.feature);
+      if (inter) parts.push(inter);
     } catch(e){}
-    return null;
+  });
+  if (!parts.length) return null;
+  var merged = parts[0];
+  for (var i = 1; i < parts.length; i++) {
+    try { merged = turf.union(merged, parts[i]); } catch(e){}
   }
+  return merged;
+}
 
-  function addStroke(pts, color) {
-    if (!UKR || !RUS) return;
+function detectCountry(feature) {
+  try {
+    var iUkr = turf.intersect(feature, UKR);
+    var iRus = turf.intersect(feature, RUS);
+    var aUkr = iUkr ? turf.area(iUkr) : 0;
+    var aRus = iRus ? turf.area(iRus) : 0;
+    if (aUkr > aRus) return 'UKR';
+    if (aRus > aUkr) return 'RUS';
+  } catch(e){}
+  return null;
+}
 
-    var coords = pts.map(function(p){ return [p[1], p[0]]; });
-    var first = coords[0], last = coords[coords.length-1];
-    if (first[0] !== last[0] || first[1] !== last[1]) coords.push([first[0], first[1]]);
-
-    var drawn = {
-      type: 'Feature',
-      geometry: { type: 'Polygon', coordinates: [coords] },
-      properties: {}
-    };
-
-    var country = detectCountry(drawn);
-    if (!country) { showHint('За пределами карты'); return; }
-
-    var countryFeature = country === 'UKR' ? UKR : RUS;
-    var clipped = null;
-    try { clipped = turf.intersect(drawn, countryFeature); } catch(e){}
-    if (!clipped) { showHint('За пределами карты'); return; }
-
-    var oppositeColor = (color === '#dc2626') ? '#2563eb' : '#dc2626';
-
-    var needIntersection = false;
-    if (color === '#dc2626' && country === 'RUS') needIntersection = true;
-    if (color === '#2563eb' && country === 'UKR') needIntersection = true;
-
-    if (needIntersection) {
-      var target = intersectWithColor(clipped, oppositeColor);
-      if (!target) {
-        showHint('❌ Здесь нет ' + (oppositeColor === '#dc2626' ? 'красного' : 'синего'));
-        return;
-      }
-      clipped = target;
+function addStroke(pts, color) {
+  if (!UKR || !RUS) return;
+  var coords = pts.map(function(p){ return [p[1], p[0]]; });
+  var first = coords[0], last = coords[coords.length-1];
+  if (first[0] !== last[0] || first[1] !== last[1]) coords.push([first[0], first[1]]);
+  var drawn = { type: 'Feature', geometry: { type: 'Polygon', coordinates: [coords] }, properties: {} };
+  var country = detectCountry(drawn);
+  if (!country) { showHint('За пределами карты'); return; }
+  var countryFeature = country === 'UKR' ? UKR : RUS;
+  var clipped = null;
+  try { clipped = turf.intersect(drawn, countryFeature); } catch(e){}
+  if (!clipped) { showHint('За пределами карты'); return; }
+  var oppositeColor = (color === '#dc2626') ? '#2563eb' : '#dc2626';
+  var needIntersection = false;
+  if (color === '#dc2626' && country === 'RUS') needIntersection = true;
+  if (color === '#2563eb' && country === 'UKR') needIntersection = true;
+  if (needIntersection) {
+    var target = intersectWithColor(clipped, oppositeColor);
+    if (!target) {
+      showHint('❌ Здесь нет ' + (oppositeColor === '#dc2626' ? 'красного' : 'синего'));
+      return;
     }
-
-    try {
-      var reClipped = turf.intersect(clipped, countryFeature);
-      if (reClipped) clipped = reClipped;
-    } catch(e){}
-
-    var newStrokes = [];
-    strokes.forEach(function(s){
-      if (s.color !== oppositeColor) { newStrokes.push(s); return; }
-      try {
-        var diff = turf.difference(s.feature, clipped);
-        if (diff) newStrokes.push({ feature: diff, color: s.color });
-      } catch(e){ newStrokes.push(s); }
-    });
-    strokes = newStrokes;
-
-    strokes.push({ feature: clipped, color: color });
-
-    redrawAll();
-    saveAll();
+    clipped = target;
   }
+  try {
+    var reClipped = turf.intersect(clipped, countryFeature);
+    if (reClipped) clipped = reClipped;
+  } catch(e){}
 
-  function redrawAll() {
-    fillLayers.forEach(function(l){ map.removeLayer(l); });
-    fillLayers = [];
-
-    if (!strokes.length) return;
-
-    var byColor = { '#dc2626': [], '#2563eb': [] };
-    strokes.forEach(function(s){
-      if (!byColor[s.color]) byColor[s.color] = [];
-      byColor[s.color].push(s.feature);
-    });
-
-    Object.keys(byColor).forEach(function(color){
-      var list = byColor[color];
-      if (!list.length) return;
-      var merged = list[0];
-      for (var i = 1; i < list.length; i++) {
-        try { merged = turf.union(merged, list[i]); } catch(e){}
-      }
-      var fl = L.geoJSON(merged, {
-        style: {
-          color: '#000000',
-          weight: 2.5,
-          opacity: 1,
-          fillColor: color,
-          fillOpacity: 0.75
+  // === Проверка городов ===
+  var captured = [];
+  CITIES.forEach(function(c) {
+    var pt = turf.point([c.lon, c.lat]);
+    try {
+      if (turf.booleanPointInPolygon(pt, clipped)) {
+        if (cityOwners[c.name] !== color) {
+          captured.push(c.name);
+          cityOwners[c.name] = color;
         }
-      }).addTo(map);
-      fillLayers.push(fl);
-    });
-  }
+      }
+    } catch(e){}
+  });
 
-  function undoLast(){
-    if (!strokes.length) { showHint('Нет штрихов'); return; }
-    strokes.pop();
-    redrawAll();
-    saveAll();
-  }
+  // Вытеснение
+  var newStrokes = [];
+  strokes.forEach(function(s){
+    if (s.color !== oppositeColor) { newStrokes.push(s); return; }
+    try {
+      var diff = turf.difference(s.feature, clipped);
+      if (diff) newStrokes.push({ feature: diff, color: s.color });
+    } catch(e){ newStrokes.push(s); }
+  });
+  strokes = newStrokes;
+  strokes.push({ feature: clipped, color: color });
 
-  function clearAll(){
-    if (!strokes.length) return;
-    if (!confirm('Убрать всё?')) return;
-    strokes = [];
-    redrawAll();
-    saveAll();
-  }
-
-  function showHint(t){
-    var h = document.getElementById('hint');
-    h.textContent = t;
-    h.style.display = 'block';
-    setTimeout(function(){ h.style.display = 'none'; }, 2000);
-  }
-
-  init();
-})();
-</script>
-</body>
-</html>
+  // === Показ уведомлений ===
+  var sideName = color === '#dc2626' ? 'ВС РФ' : 'ВСУ';
+  if (captured.length) {
+    if (captured.length <= 3) {
+      captured.forEach(function(n){
+        showToast('📍 ' + n + ' перешёл под контроль ' + sideName, color);
+      });
+    } else {
+      showToast('📍 ' + cap
