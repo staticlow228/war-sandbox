@@ -8,7 +8,7 @@
 <style>
 *{margin:0;padding:0;box-sizing:border-box;font-family:system-ui,sans-serif;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none}
 body{background:#0f172a;color:#e2e8f0;overflow:hidden;height:100vh}
-#map{position:absolute;inset:0;background:#0f172a;z-index:1}
+#map{position:absolute;inset:0;background:#0f172a;z-index:1;touch-action:none}
 .hidden{display:none!important}
 #load{position:fixed;inset:0;z-index:9999;background:#0f172a;display:flex;align-items:center;justify-content:center;font-size:16px;text-align:center;padding:20px;color:#e2e8f0}
 
@@ -33,9 +33,6 @@ body{background:#0f172a;color:#e2e8f0;overflow:hidden;height:100vh}
 #legend .sw{width:14px;height:14px;border-radius:3px;border:1px solid #475569}
 
 #hint{position:absolute;top:60px;left:50%;transform:translateX(-50%);background:rgba(250,204,21,.95);color:#111;padding:8px 14px;border-radius:8px;font-size:12px;font-weight:600;z-index:2000;max-width:80vw;text-align:center;display:none}
-
-.leaflet-container.drawing{cursor:crosshair!important}
-.leaflet-container.drawing .leaflet-interactive{pointer-events:none}
 </style>
 </head>
 <body>
@@ -80,9 +77,10 @@ body{background:#0f172a;color:#e2e8f0;overflow:hidden;height:100vh}
   var drawMode = false;
   var currentPoints = [];
   var currentPreview = null;
+  var startMarker = null;
   var painted = [];
   var GRAY_RADIUS_KM = 2;
-  var STORAGE_KEY = 'war_sandbox_paints_v1';
+  var STORAGE_KEY = 'war_sandbox_paints_v2';
 
   function init(){
     map = L.map('map', {zoomControl:true, attributionControl:false}).setView([50, 34], 5);
@@ -110,99 +108,154 @@ body{background:#0f172a;color:#e2e8f0;overflow:hidden;height:100vh}
       document.getElementById('openBtn').classList.add('hidden');
     });
 
-    map.on('mousedown', onStart);
-    map.on('mousemove', onMove);
-    map.on('mouseup', onEnd);
-    map.on('touchstart', onStart);
-    map.on('touchmove', onMove);
-    map.on('touchend', onEnd);
+    // События через DOM напрямую (обход проблемы с touchmove)
+    var container = map.getContainer();
+    container.addEventListener('touchstart', handleStart, {passive:false});
+    container.addEventListener('touchmove', handleMove, {passive:false});
+    container.addEventListener('touchend', handleEnd, {passive:false});
+    container.addEventListener('touchcancel', handleEnd, {passive:false});
+    container.addEventListener('mousedown', handleStart);
+    container.addEventListener('mousemove', handleMove);
+    container.addEventListener('mouseup', handleEnd);
+    container.addEventListener('mouseleave', handleEnd);
 
     loadData();
   }
 
-  // ===== СОХРАНЕНИЕ =====
+  // ===== Сохранение =====
   function save() {
     try {
       var data = painted.map(function(p){
-        var pts = p.polygon.getLatLngs()[0].map(function(ll){ return [ll.lat, ll.lng]; });
-        return { pts: pts, color: p.color };
+        return { pts: p.pts, color: p.color };
       });
       localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-    } catch(e) { console.warn('Save error', e); }
+    } catch(e) { console.warn('save', e); }
   }
-
   function load() {
     try {
       var raw = localStorage.getItem(STORAGE_KEY);
       if (!raw) return;
       var data = JSON.parse(raw);
       if (!Array.isArray(data)) return;
-      data.forEach(function(item){
-        addPolygon(item.pts, item.color, false);
-      });
-    } catch(e) { console.warn('Load error', e); }
+      data.forEach(function(item){ addPolygon(item.pts, item.color, false); });
+    } catch(e) { console.warn('load', e); }
   }
 
-  // ===== ЗАГРУЗКА КАРТЫ =====
+  // ===== Карта =====
   function loadData(){
-    document.getElementById('load').textContent = 'Загрузка (5-10 сек)...';
-
+    document.getElementById('load').textContent = 'Загрузка...';
     fetch('https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_110m_admin_0_countries.geojson')
-      .then(function(r){
-        if (!r.ok) throw new Error('HTTP ' + r.status);
-        return r.json();
-      })
+      .then(function(r){ if (!r.ok) throw new Error('HTTP '+r.status); return r.json(); })
       .then(function(data){
         var ukr = null, rus = null;
         data.features.forEach(function(f){
-          var p = f.properties;
-          var code = p.ADM0_A3 || p.adm0_a3 || '';
+          var code = f.properties.ADM0_A3 || f.properties.adm0_a3 || '';
           if (code === 'UKR') ukr = f;
           if (code === 'RUS') rus = f;
         });
+        if (!ukr || !rus) { document.getElementById('load').textContent = 'Не нашёл страны'; return; }
 
-        if (!ukr || !rus) {
-          document.getElementById('load').textContent = 'Не нашёл страны.';
-          return;
-        }
-
-        L.geoJSON(rus, {
-          style: {color:'#0f172a', weight:1, fillColor:'#ef4444', fillOpacity:0.85}
-        }).addTo(map);
-
-        L.geoJSON(ukr, {
-          style: {color:'#0f172a', weight:1, fillColor:'#3b82f6', fillOpacity:0.85}
-        }).addTo(map);
+        L.geoJSON(rus, {style:{color:'#0f172a',weight:1,fillColor:'#ef4444',fillOpacity:0.85}}).addTo(map);
+        L.geoJSON(ukr, {style:{color:'#0f172a',weight:1,fillColor:'#3b82f6',fillOpacity:0.85}}).addTo(map);
 
         var crimea = [
-          [46.15, 33.6],[46.1, 34.5],[45.9, 35.2],[45.6, 35.8],
-          [45.4, 36.5],[45.0, 36.6],[44.8, 36.1],[44.5, 35.2],
-          [44.4, 34.5],[44.5, 33.8],[44.7, 33.5],[45.2, 32.5],
-          [45.7, 32.5],[46.0, 33.0]
+          [46.15,33.6],[46.1,34.5],[45.9,35.2],[45.6,35.8],[45.4,36.5],[45.0,36.6],
+          [44.8,36.1],[44.5,35.2],[44.4,34.5],[44.5,33.8],[44.7,33.5],[45.2,32.5],
+          [45.7,32.5],[46.0,33.0]
         ];
-        L.polygon(crimea, {
-          color:'#0f172a', weight:1, fillColor:'#7f1d1d', fillOpacity:0.95
-        }).addTo(map);
+        L.polygon(crimea, {color:'#0f172a',weight:1,fillColor:'#7f1d1d',fillOpacity:0.95}).addTo(map);
 
-        try {
-          var b = L.geoJSON(ukr).getBounds();
-          map.fitBounds(b, {padding:[20,20]});
-        } catch(e){}
+        try { map.fitBounds(L.geoJSON(ukr).getBounds(), {padding:[20,20]}); } catch(e){}
 
-        // Загружаем сохранённые захваты
         load();
-
         document.getElementById('load').style.display = 'none';
         document.getElementById('legend').classList.remove('hidden');
         document.getElementById('panel').classList.remove('hidden');
       })
-      .catch(function(e){
-        document.getElementById('load').textContent = 'Ошибка: ' + e.message;
-        console.error(e);
-      });
+      .catch(function(e){ document.getElementById('load').textContent = 'Ошибка: ' + e.message; });
   }
 
-  // ===== ДОБАВЛЕНИЕ ПОЛИГОНА =====
+  // ===== Режим рисования =====
+  function toggleDraw(){
+    drawMode = !drawMode;
+    var btn = document.getElementById('drawBtn');
+    var c = map.getContainer();
+    if (drawMode) {
+      btn.textContent = '✖ Стоп';
+      btn.classList.add('active');
+      map.dragging.disable();
+      showHint('Веди пальцем — рисуй линию');
+    } else {
+      btn.textContent = '✏️ Включить кисть';
+      btn.classList.remove('active');
+      map.dragging.enable();
+      cancelStroke();
+    }
+  }
+
+  function cancelStroke() {
+    if (currentPreview) { map.removeLayer(currentPreview); currentPreview = null; }
+    if (startMarker) { map.removeLayer(startMarker); startMarker = null; }
+    currentPoints = [];
+  }
+
+  // ===== События рисования =====
+  function getLatLng(e) {
+    var t = (e.touches && e.touches[0]) || (e.changedTouches && e.changedTouches[0]) || e;
+    return map.mouseEventToLatLng(t);
+  }
+
+  function handleStart(e){
+    if (!drawMode) return;
+    if (e.touches && e.touches.length > 1) return;
+    if (e.button !== undefined && e.button !== 0) return;
+    e.preventDefault();
+
+    var ll = getLatLng(e);
+    currentPoints = [ll];
+
+    // Точка старта — карандаш
+    startMarker = L.marker(ll, {
+      icon: L.divIcon({
+        className: '',
+        html: '<div style="font-size:24px;line-height:1;filter:drop-shadow(0 2px 4px #000)">✏️</div>',
+        iconSize: [24,24],
+        iconAnchor: [12,12]
+      }),
+      interactive: false
+    }).addTo(map);
+
+    // Чёрная временная линия
+    currentPreview = L.polyline(currentPoints, {
+      color: '#000', weight: 4, opacity: 0.9
+    }).addTo(map);
+  }
+
+  function handleMove(e){
+    if (!drawMode || !currentPreview) return;
+    e.preventDefault();
+    var ll = getLatLng(e);
+    currentPoints.push(ll);
+    currentPreview.setLatLngs(currentPoints);
+  }
+
+  function handleEnd(e){
+    if (!drawMode || !currentPreview) return;
+    e.preventDefault();
+
+    var pts = currentPoints.slice();
+    cancelStroke();
+
+    if (pts.length < 3) {
+      showHint('Слишком коротко — веди палец дальше');
+      return;
+    }
+
+    var arr = pts.map(function(ll){ return [ll.lat, ll.lng]; });
+    addPolygon(arr, currentColor, true);
+  }
+
+  // ===== Полигон + серая зона =====
   function addPolygon(pts, color, shouldSave) {
     var latlngs = pts.map(function(p){ return L.latLng(p[0], p[1]); });
 
@@ -213,73 +266,21 @@ body{background:#0f172a;color:#e2e8f0;overflow:hidden;height:100vh}
     var grayRing = null;
     try {
       var polyGeo = polygon.toGeoJSON();
-      var buffered = turf.buffer(polyGeo, GRAY_RADIUS_KM, {units: 'kilometers'});
+      var buffered = turf.buffer(polyGeo, GRAY_RADIUS_KM, {units:'kilometers'});
       var ring = turf.difference(buffered, polyGeo);
       if (ring) {
         grayRing = L.geoJSON(ring, {
-          style: {color:'#9ca3af', weight:1, fillColor:'#9ca3af', fillOpacity:0.5, dashArray:'3,3'},
-          interactive: false
+          style:{color:'#9ca3af',weight:1,fillColor:'#9ca3af',fillOpacity:0.5,dashArray:'3,3'},
+          interactive:false
         }).addTo(map);
       }
-    } catch(err){ console.warn('Буфер:', err); }
+    } catch(err){}
 
-    painted.push({polygon: polygon, gray: grayRing, color: color});
-
+    painted.push({polygon: polygon, gray: grayRing, pts: pts, color: color});
     if (shouldSave !== false) save();
   }
 
-  // ===== КИСТЬ =====
-  function toggleDraw(){
-    drawMode = !drawMode;
-    var btn = document.getElementById('drawBtn');
-    var c = map.getContainer();
-    if (drawMode) {
-      btn.textContent = '✖ Стоп';
-      btn.classList.add('active');
-      c.classList.add('drawing');
-      map.dragging.disable();
-      showHint('Обведи территорию пальцем');
-    } else {
-      btn.textContent = '✏️ Включить кисть';
-      btn.classList.remove('active');
-      c.classList.remove('drawing');
-      map.dragging.enable();
-      if (currentPreview) { map.removeLayer(currentPreview); currentPreview = null; }
-      currentPoints = [];
-    }
-  }
-
-  function onStart(e){
-    if (!drawMode) return;
-    if (e.originalEvent && e.originalEvent.touches && e.originalEvent.touches.length > 1) return;
-    currentPoints = [e.latlng];
-    currentPreview = L.polygon(currentPoints, {
-      color: currentColor, weight: 3, fillColor: currentColor, fillOpacity: 0.4
-    }).addTo(map);
-  }
-
-  function onMove(e){
-    if (!drawMode || !currentPreview) return;
-    currentPoints.push(e.latlng);
-    currentPreview.setLatLngs(currentPoints);
-    if (e.originalEvent && e.originalEvent.preventDefault) e.originalEvent.preventDefault();
-  }
-
-  function onEnd(){
-    if (!drawMode || !currentPreview) return;
-    if (currentPoints.length < 3) {
-      map.removeLayer(currentPreview); currentPreview = null; currentPoints = [];
-      showHint('Слишком коротко — обведи больше');
-      return;
-    }
-    map.removeLayer(currentPreview); currentPreview = null;
-    var pts = currentPoints.map(function(ll){ return [ll.lat, ll.lng]; });
-    currentPoints = [];
-
-    addPolygon(pts, currentColor, true);
-  }
-
-  // ===== УПРАВЛЕНИЕ =====
+  // ===== Управление =====
   function undoLast(){
     if (!painted.length) return;
     var last = painted.pop();
