@@ -1,84 +1,255 @@
 <!DOCTYPE html>
-<html>
+<html lang="ru">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Украина</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Карта</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <style>
-body{margin:0;background:#0f172a;font-family:sans-serif}
-#map{position:absolute;inset:0;background:#0f172a}
-#info{position:absolute;bottom:14px;left:14px;background:rgba(15,23,42,.95);border:1px solid #334155;padding:10px 14px;border-radius:10px;z-index:1000;font-size:13px;color:#e2e8f0;line-height:1.8}
-#info .i{display:flex;align-items:center;gap:8px}
-#info .sw{width:16px;height:16px;border-radius:3px;border:1px solid #475569}
-#load{position:fixed;inset:0;background:#0f172a;color:#e2e8f0;display:flex;align-items:center;justify-content:center;font-size:16px;z-index:9999;text-align:center;padding:20px}
+*{margin:0;padding:0;box-sizing:border-box;font-family:system-ui,sans-serif;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none}
+body{background:#0f172a;color:#e2e8f0;overflow:hidden;height:100vh}
+#map{position:absolute;inset:0;background:#0f172a;z-index:1}
+.hidden{display:none!important}
+#load{position:fixed;inset:0;z-index:9999;background:#0f172a;display:flex;align-items:center;justify-content:center;font-size:16px;text-align:center;padding:20px;color:#e2e8f0}
+
+#brushPanel{position:absolute;bottom:10px;left:8px;width:250px;background:rgba(15,23,42,.96);border:1px solid #334155;padding:10px;border-radius:12px;z-index:1000;font-size:11px}
+#brushPanel .row{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:6px}
+#brushPanel .brush{flex:1;min-width:45px;padding:8px 4px;border-radius:8px;background:#334155;color:#fff;border:2px solid #475569;font-size:11px;cursor:pointer;font-weight:600;text-align:center}
+#brushPanel .brush.active{border-color:#facc15;background:#475569}
+#brushPanel .brush.b-blue{background:#3b82f6}
+#brushPanel .brush.b-red{background:#ef4444}
+#brushPanel .brush.b-dred{background:#7f1d1d}
+#brushPanel .brush.b-dblue{background:#1e3a8a}
+#brushPanel .brush.b-gray{background:#9ca3af;color:#111}
+#brushPanel input[type=range]{width:100%;margin:4px 0}
+#brushPanel button{width:100%;padding:8px;margin-top:5px;background:#475569;color:#fff;border:none;border-radius:6px;font-size:11px;cursor:pointer;font-weight:600}
+#brushPanel .info{color:#94a3b8;text-align:center;margin-top:4px}
+
+#legend{position:absolute;top:10px;left:8px;background:rgba(15,23,42,.95);border:1px solid #334155;padding:8px;border-radius:10px;z-index:1000;font-size:10px;line-height:1.6}
+#legend .item{display:flex;align-items:center;gap:6px}
+#legend .sw{width:14px;height:14px;border-radius:3px;border:1px solid #475569}
+
+#hint{position:absolute;top:60px;left:50%;transform:translateX(-50%);background:rgba(250,204,21,.95);color:#111;padding:8px 14px;border-radius:8px;font-size:12px;font-weight:600;z-index:2000;max-width:80vw;text-align:center}
+
+.leaflet-container.drawing{cursor:crosshair!important}
+.leaflet-container.drawing .leaflet-interactive{pointer-events:none}
 </style>
 </head>
 <body>
+
 <div id="map"></div>
-<div id="info">
-  <div class="i"><div class="sw" style="background:#3b82f6"></div>Украина</div>
-  <div class="i"><div class="sw" style="background:#ef4444"></div>Крым</div>
+
+<div id="load">Загрузка карты...</div>
+
+<div id="legend" class="hidden">
+  <div class="item"><div class="sw" style="background:#3b82f6"></div>Украина</div>
+  <div class="item"><div class="sw" style="background:#ef4444"></div>Россия + Крым</div>
 </div>
-<div id="load">Загрузка...</div>
+
+<div id="brushPanel" class="hidden">
+  <div style="color:#cbd5e1;font-weight:600;margin-bottom:6px">🎨 Кисть</div>
+  <div class="row">
+    <button class="brush b-blue" data-color="#3b82f6">🔵 УКР</button>
+    <button class="brush b-red" data-color="#ef4444">🔴 РФ</button>
+    <button class="brush b-dred" data-color="#7f1d1d">🟥 Окуп. РФ</button>
+    <button class="brush b-dblue" data-color="#1e3a8a">🟦 Освоб.</button>
+    <button class="brush b-gray" data-color="#9ca3af">⬜ Сер.</button>
+  </div>
+  <div class="row">
+    <span style="color:#cbd5e1">📏 Радиус: <span id="rval">5</span> км</span>
+  </div>
+  <input type="range" id="radius" min="1" max="10" value="5" step="1">
+  <button id="drawBtn">✏️ Включить кисть</button>
+  <button id="undoBtn" style="background:#7f1d1d">↩ Убрать последний</button>
+  <button id="clearBtn" style="background:#7f1d1d">🗑 Убрать все</button>
+  <div class="info" id="brushInfo">Выбери цвет и жми "Включить кисть"</div>
+</div>
+
+<div id="hint" class="hidden"></div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
 <script>
-var map = L.map('map', {zoomControl:true, attributionControl:false}).setView([49, 32], 6);
-L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom:12}).addTo(map);
+(function(){
+  'use strict';
 
-function isCrimea(name){
-  var n = (name||'').toLowerCase();
-  return n.indexOf('krym')>-1 || n.indexOf('crimea')>-1 || n.indexOf('sevastopol')>-1 || n.indexOf('автономна')>-1 && n.indexOf('крим')>-1;
-}
+  var map;
+  var radiusKm = 5;
+  var currentColor = '#3b82f6';
+  var drawMode = false;
+  var currentPoints = [];
+  var currentPreview = null;
+  var painted = []; // {line, buffer}
 
-// Пробуем 10m (там точно есть области Украины)
-var URL = 'https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_10m_admin_1_states_provinces.geojson';
+  function init(){
+    map = L.map('map', {zoomControl:true, attributionControl:false}).setView([50, 34], 5);
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom:12}).addTo(map);
 
-document.getElementById('load').textContent = 'Скачиваем границы (может занять 10-20 сек)...';
+    // Кисти
+    document.querySelectorAll('.brush').forEach(function(b){
+      b.addEventListener('click', function(){
+        document.querySelectorAll('.brush').forEach(function(x){ x.classList.remove('active'); });
+        b.classList.add('active');
+        currentColor = b.getAttribute('data-color');
+        document.getElementById('brushInfo').textContent = 'Цвет выбран';
+      });
+    });
+    document.querySelector('.brush').classList.add('active');
 
-fetch(URL).then(function(r){
-  if (!r.ok) throw new Error('HTTP ' + r.status);
-  return r.json();
-}).then(function(data){
-  // Ищем украинские области по нескольким полям
-  var features = data.features.filter(function(f){
-    var p = f.properties;
-    return p.adm0_a3 === 'UKR' || p.iso_a2 === 'UA' || p.admin === 'Ukraine' || p.gu_a3 === 'UKR';
-  });
+    var slider = document.getElementById('radius');
+    slider.addEventListener('input', function(){
+      radiusKm = parseInt(this.value);
+      document.getElementById('rval').textContent = radiusKm;
+      painted.forEach(function(p){ rebuild(p); });
+    });
 
-  if (!features.length) {
-    document.getElementById('load').textContent = 'Не нашлось областей. Проверь консоль.';
-    console.log('Пример properties:', data.features[0].properties);
-    return;
+    document.getElementById('drawBtn').addEventListener('click', toggleDraw);
+    document.getElementById('undoBtn').addEventListener('click', undoLast);
+    document.getElementById('clearBtn').addEventListener('click', clearAll);
+
+    // Рисование
+    map.on('mousedown', onStart);
+    map.on('mousemove', onMove);
+    map.on('mouseup', onEnd);
+    map.on('touchstart', onStart);
+    map.on('touchmove', onMove);
+    map.on('touchend', onEnd);
+
+    loadData();
   }
 
-  var layers = [];
-  features.forEach(function(f){
-    var name = f.properties.name || f.properties.name_ru || '';
-    var occ = isCrimea(name);
-    var color = occ ? '#ef4444' : '#3b82f6';
-    var layer = L.geoJSON(f, {
-      style: {color:'#0f172a', weight:1, fillColor:color, fillOpacity:0.8}
-    }).addTo(map);
-    layer.bindTooltip(name, {sticky:true});
-    layers.push(layer);
-  });
+  function loadData(){
+    document.getElementById('load').textContent = 'Загрузка (10-20 сек)...';
+    // Страны (админ 0) — Россия и Украина
+    fetch('https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_50m_admin_0_countries.geojson')
+      .then(function(r){ return r.json(); })
+      .then(function(countries){
+        var ukr = countries.features.find(function(f){ return f.properties.adm0_a3 === 'UKR'; });
+        var rus = countries.features.find(function(f){ return f.properties.adm0_a3 === 'RUS'; });
 
-  // Центрируем аккуратно
-  try {
-    var group = L.featureGroup(layers);
-    var bounds = group.getBounds();
-    if (bounds && bounds.isValid()) {
-      map.fitBounds(bounds, {padding:[20,20]});
+        // Украина синяя
+        if (ukr) {
+          L.geoJSON(ukr, {style:{color:'#0f172a',weight:1,fillColor:'#3b82f6',fillOpacity:0.85}}).addTo(map);
+        }
+        // Россия красная
+        if (rus) {
+          L.geoJSON(rus, {style:{color:'#0f172a',weight:1,fillColor:'#ef4444',fillOpacity:0.85}}).addTo(map);
+        }
+
+        // Крым — отдельно админ 1
+        return fetch('https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_10m_admin_1_states_provinces.geojson')
+          .then(function(r){ return r.json(); })
+          .then(function(data){
+            var crimea = data.features.filter(function(f){
+              var p = f.properties;
+              var n = (p.name||'').toLowerCase();
+              var isUkr = p.adm0_a3 === 'UKR' || p.admin === 'Ukraine';
+              var isCr = n.indexOf('krym')>-1 || n.indexOf('crimea')>-1 || n.indexOf('sevastopol')>-1;
+              return isUkr && isCr;
+            });
+            crimea.forEach(function(f){
+              L.geoJSON(f, {style:{color:'#0f172a',weight:1,fillColor:'#ef4444',fillOpacity:0.95}}).addTo(map);
+            });
+            // Центрируем
+            try {
+              if (ukr) {
+                var b = L.geoJSON(ukr).getBounds();
+                map.fitBounds(b, {padding:[20,20]});
+              }
+            } catch(e){}
+            document.getElementById('load').style.display = 'none';
+            document.getElementById('legend').classList.remove('hidden');
+            document.getElementById('brushPanel').classList.remove('hidden');
+          });
+      })
+      .catch(function(e){
+        document.getElementById('load').textContent = 'Ошибка: ' + e.message;
+        console.error(e);
+      });
+  }
+
+  function toggleDraw(){
+    drawMode = !drawMode;
+    var btn = document.getElementById('drawBtn');
+    var c = map.getContainer();
+    if (drawMode) {
+      btn.textContent = '✖ Стоп';
+      c.classList.add('drawing');
+      map.dragging.disable();
+      showHint('Веди пальцем — рисуй линию');
+    } else {
+      btn.textContent = '✏️ Включить кисть';
+      c.classList.remove('drawing');
+      map.dragging.enable();
+      if (currentPreview) { map.removeLayer(currentPreview); currentPreview = null; }
+      currentPoints = [];
     }
-  } catch(e) { console.warn(e); }
+  }
 
-  document.getElementById('load').style.display = 'none';
-}).catch(function(e){
-  document.getElementById('load').textContent = 'Ошибка загрузки: ' + e.message;
-  console.error(e);
-});
+  function onStart(e){
+    if (!drawMode) return;
+    if (e.originalEvent && e.originalEvent.touches && e.originalEvent.touches.length > 1) return;
+    currentPoints = [e.latlng];
+    currentPreview = L.polyline(currentPoints, {color:currentColor, weight:4}).addTo(map);
+  }
+  function onMove(e){
+    if (!drawMode || !currentPreview) return;
+    currentPoints.push(e.latlng);
+    currentPreview.setLatLngs(currentPoints);
+    if (e.originalEvent && e.originalEvent.preventDefault) e.originalEvent.preventDefault();
+  }
+  function onEnd(){
+    if (!drawMode || !currentPreview) return;
+    if (currentPoints.length < 2) {
+      map.removeLayer(currentPreview); currentPreview = null; currentPoints = [];
+      return;
+    }
+    map.removeLayer(currentPreview); currentPreview = null;
+    var pts = currentPoints.slice(); currentPoints = [];
+
+    var line = L.polyline(pts, {color:currentColor, weight:4}).addTo(map);
+    var p = {line: line, buffer: null, color: currentColor};
+    painted.push(p);
+    rebuild(p);
+  }
+
+  function rebuild(p){
+    if (p.buffer) { map.removeLayer(p.buffer); p.buffer = null; }
+    try {
+      var g = p.line.toGeoJSON();
+      var b = turf.buffer(g, radiusKm, {units: 'kilometers'});
+      if (!b) return;
+      p.buffer = L.geoJSON(b, {
+        style: {color: p.color, weight:1, fillColor: p.color, fillOpacity: 0.7},
+        interactive: false
+      }).addTo(map);
+    } catch(e){}
+  }
+
+  function undoLast(){
+    if (!painted.length) return;
+    var last = painted.pop();
+    if (last.line) map.removeLayer(last.line);
+    if (last.buffer) map.removeLayer(last.buffer);
+  }
+
+  function clearAll(){
+    painted.forEach(function(p){
+      if (p.line) map.removeLayer(p.line);
+      if (p.buffer) map.removeLayer(p.buffer);
+    });
+    painted = [];
+  }
+
+  function showHint(t){
+    var h = document.getElementById('hint');
+    h.textContent = t;
+    h.classList.remove('hidden');
+    setTimeout(function(){ h.classList.add('hidden'); }, 2500);
+  }
+
+  init();
+})();
 </script>
 </body>
 </html>
