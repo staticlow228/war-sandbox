@@ -12,7 +12,7 @@ body{background:#0f172a;color:#e2e8f0;overflow:hidden;height:100vh}
 .hidden{display:none!important}
 #load{position:fixed;inset:0;z-index:9999;background:#0f172a;display:flex;align-items:center;justify-content:center;font-size:16px;text-align:center;padding:20px;color:#e2e8f0}
 
-#panel{position:absolute;bottom:10px;left:8px;width:250px;background:rgba(15,23,42,.96);border:1px solid #334155;padding:10px;border-radius:12px;z-index:1000;font-size:11px;max-height:80vh;overflow-y:auto}
+#panel{position:absolute;bottom:10px;left:8px;width:240px;background:rgba(15,23,42,.96);border:1px solid #334155;padding:10px;border-radius:12px;z-index:1000;font-size:11px;max-height:80vh;overflow-y:auto}
 #panel .header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
 #panel .header span{font-weight:600;color:#cbd5e1}
 #panel .closeBtn{background:transparent;border:none;color:#94a3b8;font-size:18px;cursor:pointer;padding:0 5px;line-height:1}
@@ -40,13 +40,6 @@ body{background:#0f172a;color:#e2e8f0;overflow:hidden;height:100vh}
 #legend .sw{width:14px;height:14px;border-radius:3px;border:1px solid #475569}
 
 #hint{position:absolute;top:60px;left:50%;transform:translateX(-50%);background:rgba(250,204,21,.95);color:#111;padding:8px 14px;border-radius:8px;font-size:12px;font-weight:600;z-index:2000;max-width:80vw;text-align:center;display:none}
-
-/* Список сообщений о взятых НП */
-#notifications{position:absolute;top:100px;right:8px;width:220px;max-height:40vh;overflow-y:auto;background:rgba(15,23,42,.96);border:1px solid #334155;border-radius:10px;padding:8px;z-index:1500;font-size:11px;display:none}
-#notifications .title{font-weight:600;color:#cbd5e1;margin-bottom:6px;font-size:11px}
-#notifications .note{padding:6px 8px;margin-bottom:4px;border-radius:6px;line-height:1.3;font-weight:600}
-#notifications .note.red{background:rgba(220,38,38,.25);border-left:3px solid #dc2626;color:#fca5a5}
-#notifications .note.blue{background:rgba(37,99,235,.25);border-left:3px solid #2563eb;color:#93c5fd}
 </style>
 </head>
 <body>
@@ -57,11 +50,6 @@ body{background:#0f172a;color:#e2e8f0;overflow:hidden;height:100vh}
 <div id="legend" class="hidden">
   <div class="item"><div class="sw" style="background:#dc2626"></div>Красное</div>
   <div class="item"><div class="sw" style="background:#2563eb"></div>Синее</div>
-</div>
-
-<div id="notifications" class="hidden">
-  <div class="title">📢 Сводки</div>
-  <div id="notifList"></div>
 </div>
 
 <button id="openBtn" class="hidden">🎨</button>
@@ -77,13 +65,11 @@ body{background:#0f172a;color:#e2e8f0;overflow:hidden;height:100vh}
   </div>
 
   <div class="section">
-    <div class="sectionTitle">🗺 Подложка</div>
-    <button class="mapBtn active" data-map="satLabels">🛰🏙 Спутник + названия</button>
-    <button class="mapBtn" data-map="sat">🛰 Спутник без названий</button>
-    <button class="mapBtn" data-map="osm">🗺 Схема OSM</button>
+    <div class="sectionTitle">🗺 Карта</div>
+    <button class="mapBtn active" data-map="voyager">🗺 Google-стиль (зелёная)</button>
+    <button class="mapBtn" data-map="osm">🗺 OpenStreetMap</button>
     <button class="mapBtn" data-map="topo">🌍 Топо (рельеф)</button>
     <button class="mapBtn" data-map="dark">🌑 Тёмная</button>
-    <button class="mapBtn" data-map="humanitarian">🟡 Гуманитарная</button>
   </div>
 
   <button class="act" id="drawBtn">✏️ Включить кисть</button>
@@ -106,21 +92,18 @@ body{background:#0f172a;color:#e2e8f0;overflow:hidden;height:100vh}
   var currentPoints = [];
   var currentPreview = null;
   var startMarker = null;
-  var STORAGE_KEY = 'war_sandbox_v18';
+  var STORAGE_KEY = 'war_sandbox_v19';
 
   var UKR = null, RUS = null;
-  var settlements = []; // [{name, lat, lon}]
-  var settlementMarkers = [];
 
   var strokes = [];
   var fillLayers = [];
   var baseLayer = null;
-  var labelsLayer = null;
 
   function init(){
     map = L.map('map', {zoomControl:true, attributionControl:false}).setView([50, 34], 6);
 
-    setMapLayer('satLabels');
+    setMapLayer('voyager');
 
     var brushes = document.querySelectorAll('.brush');
     brushes.forEach(function(b){
@@ -167,18 +150,12 @@ body{background:#0f172a;color:#e2e8f0;overflow:hidden;height:100vh}
   // ===== ПОДЛОЖКИ =====
   function setMapLayer(type) {
     if (baseLayer) { map.removeLayer(baseLayer); baseLayer = null; }
-    if (labelsLayer) { map.removeLayer(labelsLayer); labelsLayer = null; }
 
     var url, opts = {};
-    if (type === 'sat') {
-      url = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
-      opts.maxZoom = 18;
-    } else if (type === 'satLabels') {
-      url = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
-      opts.maxZoom = 18;
-      labelsLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager_only_labels/{z}/{x}/{y}{r}.png', {
-        maxZoom: 19, subdomains: 'abcd', opacity: 0.95
-      });
+    if (type === 'voyager') {
+      // CartoDB Voyager — визуально как Google Maps
+      url = 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
+      opts.maxZoom = 20; opts.subdomains = 'abcd';
     } else if (type === 'osm') {
       url = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
       opts.maxZoom = 19;
@@ -187,18 +164,11 @@ body{background:#0f172a;color:#e2e8f0;overflow:hidden;height:100vh}
       opts.maxZoom = 17; opts.subdomains = 'abc';
     } else if (type === 'dark') {
       url = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
-      opts.maxZoom = 19; opts.subdomains = 'abcd';
-    } else if (type === 'humanitarian') {
-      url = 'https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png';
-      opts.maxZoom = 19; opts.subdomains = 'abc';
+      opts.maxZoom = 20; opts.subdomains = 'abcd';
     }
 
     baseLayer = L.tileLayer(url, opts).addTo(map);
-    if (labelsLayer) labelsLayer.addTo(map);
-
-    // Переносим заливки поверх
     fillLayers.forEach(function(l){ if (map.hasLayer(l)) l.bringToFront(); });
-    settlementMarkers.forEach(function(m){ if (map.hasLayer(m)) m.bringToFront(); });
   }
 
   function saveAll() {
@@ -213,7 +183,6 @@ body{background:#0f172a;color:#e2e8f0;overflow:hidden;height:100vh}
     } catch(e){}
   }
 
-  // ===== Загрузка данных =====
   function loadData(){
     document.getElementById('load').textContent = 'Загрузка границ...';
     fetch('https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_110m_admin_0_countries.geojson')
@@ -226,8 +195,8 @@ body{background:#0f172a;color:#e2e8f0;overflow:hidden;height:100vh}
         });
         if (!UKR || !RUS) { document.getElementById('load').textContent = 'Не нашёл'; return; }
 
-        L.geoJSON(RUS, {style:{color:'#ffffff',weight:2,fillOpacity:0,opacity:0.75}, interactive:false}).addTo(map);
-        L.geoJSON(UKR, {style:{color:'#ffffff',weight:2,fillOpacity:0,opacity:0.9}, interactive:false}).addTo(map);
+        L.geoJSON(RUS, {style:{color:'#000000',weight:2,fillOpacity:0,opacity:0.6}, interactive:false}).addTo(map);
+        L.geoJSON(UKR, {style:{color:'#000000',weight:2,fillOpacity:0,opacity:0.8}, interactive:false}).addTo(map);
 
         try { map.fitBounds(L.geoJSON(UKR).getBounds(), {padding:[20,20]}); } catch(e){}
 
@@ -236,87 +205,10 @@ body{background:#0f172a;color:#e2e8f0;overflow:hidden;height:100vh}
         document.getElementById('load').style.display = 'none';
         document.getElementById('legend').classList.remove('hidden');
         document.getElementById('panel').classList.remove('hidden');
-        document.getElementById('notifications').style.display = 'block';
-
-        // Загружаем НП с Overpass (в фоне)
-        loadSettlements();
       })
       .catch(function(e){ document.getElementById('load').textContent = 'Ошибка: ' + e.message; });
   }
 
-  // ===== НП через Overpass =====
-  function loadSettlements() {
-    // Грузим крупные города УКР + европейской части РФ (bbox)
-    var bbox = '44,22,56,50'; // south,west,north,east
-    var query = '[out:json][timeout:25];(' +
-      'node["place"~"city|town"](' + bbox + ');' +
-      ');out body 3000;';
-
-    fetch('https://overpass-api.de/api/interpreter', {
-      method: 'POST',
-      body: 'data=' + encodeURIComponent(query),
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
-    })
-    .then(function(r){ return r.json(); })
-    .then(function(data){
-      if (!data.elements) return;
-      settlements = data.elements
-        .filter(function(e){ return e.lat && e.lon && e.tags && e.tags.name; })
-        .map(function(e){ return { name: e.tags.name, lat: e.lat, lon: e.lon }; });
-      console.log('НП загружено:', settlements.length);
-      showHint('Загружено ' + settlements.length + ' НП');
-    })
-    .catch(function(e){ console.warn('Overpass err', e); });
-  }
-
-  // ===== Кто в этой точке =====
-  function getOwnerAt(lat, lon) {
-    var pt = turf.point([lon, lat]);
-    for (var i = strokes.length - 1; i >= 0; i--) {
-      var s = strokes[i];
-      try {
-        if (turf.booleanPointInPolygon(pt, s.feature)) return s.color;
-      } catch(e){}
-    }
-    return null;
-  }
-
-  // ===== Пересечения с НП =====
-  function findSettlementsIn(feature, previousOwner, newOwner) {
-    var found = [];
-    // Ищем НП, которые РАНЬШЕ были не под newOwner, а ТЕПЕРЬ попали в feature
-    settlements.forEach(function(n) {
-      var pt = turf.point([n.lon, n.lat]);
-      try {
-        if (turf.booleanPointInPolygon(pt, feature)) {
-          // Проверяем — был ли он ДО этого не в нашем цвете
-          if (previousOwner !== newOwner) {
-            found.push(n.name);
-          }
-        }
-      } catch(e){}
-    });
-    return found;
-  }
-
-  // ===== Сообщения =====
-  function addNotification(text, side) {
-    var list = document.getElementById('notifList');
-    var el = document.createElement('div');
-    el.className = 'note ' + (side === '#dc2626' ? 'red' : 'blue');
-    el.textContent = text;
-    list.insertBefore(el, list.firstChild);
-    if (list.children.length > 20) list.removeChild(list.lastChild);
-  }
-
-  function showHint(t){
-    var h = document.getElementById('hint');
-    h.textContent = t;
-    h.style.display = 'block';
-    setTimeout(function(){ h.style.display = 'none'; }, 2500);
-  }
-
-  // ===== Режим =====
   function toggleDraw(){
     drawMode = !drawMode;
     var btn = document.getElementById('drawBtn');
@@ -455,21 +347,6 @@ body{background:#0f172a;color:#e2e8f0;overflow:hidden;height:100vh}
       if (reClipped) clipped = reClipped;
     } catch(e){}
 
-    // === Определяем какие НП попали в новую зону ===
-    var newSettlements = [];
-    settlements.forEach(function(n){
-      var pt = turf.point([n.lon, n.lat]);
-      try {
-        if (turf.booleanPointInPolygon(pt, clipped)) {
-          var prev = getOwnerAt(n.lat, n.lon);
-          if (prev !== color) {
-            newSettlements.push(n.name);
-          }
-        }
-      } catch(e){}
-    });
-
-    // Вытеснение
     var newStrokes = [];
     strokes.forEach(function(s){
       if (s.color !== oppositeColor) { newStrokes.push(s); return; }
@@ -481,22 +358,6 @@ body{background:#0f172a;color:#e2e8f0;overflow:hidden;height:100vh}
     strokes = newStrokes;
 
     strokes.push({ feature: clipped, color: color });
-
-    // === Сообщения ===
-    var sideName = color === '#dc2626' ? 'ВС РФ' : 'ВСУ';
-    if (newSettlements.length) {
-      if (newSettlements.length <= 5) {
-        newSettlements.forEach(function(name){
-          addNotification('📍 ' + name + ' перешёл под контроль ' + sideName, color);
-        });
-      } else {
-        addNotification('📍 ' + newSettlements.length + ' НП перешли под контроль ' + sideName, color);
-        // Всё равно показываем первые 3
-        newSettlements.slice(0,3).forEach(function(name){
-          addNotification('📍 ' + name + ' → ' + sideName, color);
-        });
-      }
-    }
 
     redrawAll();
     saveAll();
@@ -510,4 +371,48 @@ body{background:#0f172a;color:#e2e8f0;overflow:hidden;height:100vh}
 
     var byColor = { '#dc2626': [], '#2563eb': [] };
     strokes.forEach(function(s){
-      if (!byColor[s.color]) byColor[s.col
+      if (!byColor[s.color]) byColor[s.color] = [];
+      byColor[s.color].push(s.feature);
+    });
+
+    Object.keys(byColor).forEach(function(color){
+      var list = byColor[color];
+      if (!list.length) return;
+      var merged = list[0];
+      for (var i = 1; i < list.length; i++) {
+        try { merged = turf.union(merged, list[i]); } catch(e){}
+      }
+      var fl = L.geoJSON(merged, {
+        style: { color: color, weight: 2, fillColor: color, fillOpacity: 0.7 }
+      }).addTo(map);
+      fillLayers.push(fl);
+    });
+  }
+
+  function undoLast(){
+    if (!strokes.length) { showHint('Нет штрихов'); return; }
+    strokes.pop();
+    redrawAll();
+    saveAll();
+  }
+
+  function clearAll(){
+    if (!strokes.length) return;
+    if (!confirm('Убрать всё?')) return;
+    strokes = [];
+    redrawAll();
+    saveAll();
+  }
+
+  function showHint(t){
+    var h = document.getElementById('hint');
+    h.textContent = t;
+    h.style.display = 'block';
+    setTimeout(function(){ h.style.display = 'none'; }, 2000);
+  }
+
+  init();
+})();
+</script>
+</body>
+  </html>
