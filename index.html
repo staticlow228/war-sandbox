@@ -12,7 +12,7 @@ body{background:#0f172a;color:#e2e8f0;overflow:hidden;height:100vh}
 .hidden{display:none!important}
 #load{position:fixed;inset:0;z-index:9999;background:#0f172a;display:flex;align-items:center;justify-content:center;font-size:16px;text-align:center;padding:20px;color:#e2e8f0}
 
-#panel{position:absolute;bottom:10px;left:8px;width:230px;background:rgba(15,23,42,.96);border:1px solid #334155;padding:10px;border-radius:12px;z-index:1000;font-size:11px}
+#panel{position:absolute;bottom:10px;left:8px;width:230px;background:rgba(15,23,42,.96);border:1px solid #334155;padding:10px;border-radius:12px;z-index:1000;font-size:11px;max-height:85vh;overflow-y:auto}
 #panel .header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
 #panel .header span{font-weight:600;color:#cbd5e1}
 #panel .closeBtn{background:transparent;border:none;color:#94a3b8;font-size:18px;cursor:pointer;padding:0 5px;line-height:1}
@@ -24,9 +24,14 @@ body{background:#0f172a;color:#e2e8f0;overflow:hidden;height:100vh}
 #panel .sliderLabel{display:flex;justify-content:space-between;color:#cbd5e1;font-size:11px;margin-bottom:4px}
 #panel .sliderLabel span:last-child{color:#facc15;font-weight:600}
 #panel input[type=range]{width:100%;margin-bottom:8px}
+#panel .toggle{display:flex;align-items:center;justify-content:space-between;padding:8px 10px;background:#1e293b;border:1px solid #334155;border-radius:6px;margin-bottom:5px;cursor:pointer;user-select:none}
+#panel .toggle .label{color:#cbd5e1;font-weight:600;font-size:11px}
+#panel .toggle .state{color:#64748b;font-size:10px;font-weight:600}
+#panel .toggle.on .state{color:#facc15}
 #panel button.act{width:100%;padding:10px;margin-top:5px;background:#475569;color:#fff;border:none;border-radius:6px;font-size:11px;cursor:pointer;font-weight:600}
 #panel button.act.active{background:#facc15;color:#111}
 #panel button.danger{background:#7f1d1d}
+#panel .section{border-top:1px solid #334155;margin-top:8px;padding-top:8px}
 #panel .hintTxt{color:#94a3b8;text-align:center;margin-top:6px;font-size:10px;line-height:1.4}
 
 #openBtn{position:absolute;bottom:10px;left:8px;width:44px;height:44px;background:rgba(15,23,42,.96);border:1px solid #334155;border-radius:50%;color:#e2e8f0;font-size:20px;cursor:pointer;z-index:1000;display:flex;align-items:center;justify-content:center}
@@ -65,6 +70,18 @@ body{background:#0f172a;color:#e2e8f0;overflow:hidden;height:100vh}
     <span id="rval">4 км</span>
   </div>
   <input type="range" id="radius" min="1" max="15" value="4" step="1">
+
+  <div class="section">
+    <div class="toggle on" id="toggleGray">
+      <span class="label">⬜ Серая зона</span>
+      <span class="state" id="grayState">ВКЛ</span>
+    </div>
+    <div class="toggle on" id="toggleLabels">
+      <span class="label">🏙 Названия</span>
+      <span class="state" id="labelsState">ВКЛ</span>
+    </div>
+  </div>
+
   <button class="act" id="drawBtn">✏️ Включить кисть</button>
   <button class="act danger" id="undoBtn">↩ Убрать последний</button>
   <button class="act danger" id="clearBtn">🗑 Убрать всё</button>
@@ -86,22 +103,35 @@ body{background:#0f172a;color:#e2e8f0;overflow:hidden;height:100vh}
   var currentPoints = [];
   var currentPreview = null;
   var startMarker = null;
-  var STORAGE_KEY = 'war_sandbox_v14';
+  var STORAGE_KEY = 'war_sandbox_v16';
 
-  // Страны
+  var showGray = true;
+  var showLabels = true;
+
   var UKR = null, RUS = null;
 
-  // Штрихи: { feature, color, radius, country }
-  // country — где нарисовано ('UKR' или 'RUS')
   var strokes = [];
   var fillLayers = [];
   var grayLayers = [];
 
+  // Слои подложки
+  var satelliteLayer = null;
+  var labelsLayer = null;
+
   function init(){
     map = L.map('map', {zoomControl:true, attributionControl:false}).setView([50, 34], 6);
 
-    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+    // Спутник Esri
+    satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
       maxZoom: 18
+    }).addTo(map);
+
+    // Слой с подписями (города, сёла, дороги) — CartoDB светлые подписи
+    labelsLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager_only_labels/{z}/{x}/{y}{r}.png', {
+      maxZoom: 19,
+      subdomains: 'abcd',
+      opacity: 0.95,
+      pane: 'overlayPane'
     }).addTo(map);
 
     var brushes = document.querySelectorAll('.brush');
@@ -110,10 +140,6 @@ body{background:#0f172a;color:#e2e8f0;overflow:hidden;height:100vh}
         brushes.forEach(function(x){ x.classList.remove('active'); });
         b.classList.add('active');
         currentColor = b.getAttribute('data-color');
-        document.getElementById('hintTxt').textContent =
-          currentColor === '#dc2626'
-            ? 'УКР — везде, РФ — только по синему'
-            : 'РФ — везде, УКР — только по красному';
       });
     });
 
@@ -127,6 +153,26 @@ body{background:#0f172a;color:#e2e8f0;overflow:hidden;height:100vh}
     document.getElementById('openBtn').addEventListener('click', function(){
       document.getElementById('panel').classList.remove('hidden');
       document.getElementById('openBtn').classList.add('hidden');
+    });
+
+    // Переключатель серой зоны
+    document.getElementById('toggleGray').addEventListener('click', function(){
+      showGray = !showGray;
+      this.classList.toggle('on', showGray);
+      document.getElementById('grayState').textContent = showGray ? 'ВКЛ' : 'ВЫКЛ';
+      redrawAll();
+    });
+
+    // Переключатель названий
+    document.getElementById('toggleLabels').addEventListener('click', function(){
+      showLabels = !showLabels;
+      this.classList.toggle('on', showLabels);
+      document.getElementById('labelsState').textContent = showLabels ? 'ВКЛ' : 'ВЫКЛ';
+      if (showLabels) {
+        if (!map.hasLayer(labelsLayer)) labelsLayer.addTo(map);
+      } else {
+        if (map.hasLayer(labelsLayer)) map.removeLayer(labelsLayer);
+      }
     });
 
     var slider = document.getElementById('radius');
@@ -148,7 +194,6 @@ body{background:#0f172a;color:#e2e8f0;overflow:hidden;height:100vh}
     loadData();
   }
 
-  // ===== Save/Load =====
   function saveAll() {
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(strokes)); } catch(e){}
   }
@@ -161,7 +206,6 @@ body{background:#0f172a;color:#e2e8f0;overflow:hidden;height:100vh}
     } catch(e){}
   }
 
-  // ===== Карта =====
   function loadData(){
     document.getElementById('load').textContent = 'Загрузка...';
     fetch('https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_110m_admin_0_countries.geojson')
@@ -172,10 +216,10 @@ body{background:#0f172a;color:#e2e8f0;overflow:hidden;height:100vh}
           if (code === 'UKR') UKR = f;
           if (code === 'RUS') RUS = f;
         });
-        if (!UKR || !RUS) { document.getElementById('load').textContent = 'Не нашёл страны'; return; }
+        if (!UKR || !RUS) { document.getElementById('load').textContent = 'Не нашёл'; return; }
 
-        L.geoJSON(RUS, {style:{color:'#ffffff',weight:2,fillOpacity:0,opacity:0.75}}).addTo(map);
-        L.geoJSON(UKR, {style:{color:'#ffffff',weight:2,fillOpacity:0,opacity:0.9}}).addTo(map);
+        L.geoJSON(RUS, {style:{color:'#ffffff',weight:2,fillOpacity:0,opacity:0.75}, pane:'overlayPane', interactive:false}).addTo(map);
+        L.geoJSON(UKR, {style:{color:'#ffffff',weight:2,fillOpacity:0,opacity:0.9}, pane:'overlayPane', interactive:false}).addTo(map);
 
         try { map.fitBounds(L.geoJSON(UKR).getBounds(), {padding:[20,20]}); } catch(e){}
 
@@ -188,7 +232,6 @@ body{background:#0f172a;color:#e2e8f0;overflow:hidden;height:100vh}
       .catch(function(e){ document.getElementById('load').textContent = 'Ошибка: ' + e.message; });
   }
 
-  // ===== Режим =====
   function toggleDraw(){
     drawMode = !drawMode;
     var btn = document.getElementById('drawBtn');
@@ -257,8 +300,7 @@ body{background:#0f172a;color:#e2e8f0;overflow:hidden;height:100vh}
     addStroke(arr, currentColor, currentRadiusKm);
   }
 
-  // ===== Проверка пересечения с другой кистью =====
-  function getIntersectWithColor(feature, targetColor) {
+  function intersectWithColor(feature, targetColor) {
     var parts = [];
     strokes.forEach(function(s){
       if (s.color !== targetColor) return;
@@ -275,9 +317,7 @@ body{background:#0f172a;color:#e2e8f0;overflow:hidden;height:100vh}
     return merged;
   }
 
-  // ===== Определить страну рисования =====
   function detectCountry(feature) {
-    // Возвращает 'UKR' или 'RUS' — где большая часть фичи
     try {
       var iUkr = turf.intersect(feature, UKR);
       var iRus = turf.intersect(feature, RUS);
@@ -289,7 +329,6 @@ body{background:#0f172a;color:#e2e8f0;overflow:hidden;height:100vh}
     return null;
   }
 
-  // ===== Добавление штриха =====
   function addStroke(pts, color, radius) {
     if (!UKR || !RUS) return;
 
@@ -303,27 +342,22 @@ body{background:#0f172a;color:#e2e8f0;overflow:hidden;height:100vh}
       properties: {}
     };
 
-    // Определяем страну рисования
     var country = detectCountry(drawn);
     if (!country) { showHint('За пределами карты'); return; }
 
-    // Обрезаем по этой стране
     var countryFeature = country === 'UKR' ? UKR : RUS;
     var clipped = null;
     try { clipped = turf.intersect(drawn, countryFeature); } catch(e){}
     if (!clipped) { showHint('За пределами карты'); return; }
 
-    // === ПРОВЕРКА ПРАВИЛ ===
     var oppositeColor = (color === '#dc2626') ? '#2563eb' : '#dc2626';
 
-    // Красный на РФ — только по синему
-    // Синий на УКР — только по красному
     var needIntersection = false;
     if (color === '#dc2626' && country === 'RUS') needIntersection = true;
     if (color === '#2563eb' && country === 'UKR') needIntersection = true;
 
     if (needIntersection) {
-      var target = getIntersectWithColor(clipped, oppositeColor);
+      var target = intersectWithColor(clipped, oppositeColor);
       if (!target) {
         showHint('❌ Здесь нет ' + (oppositeColor === '#dc2626' ? 'красного' : 'синего'));
         return;
@@ -331,13 +365,16 @@ body{background:#0f172a;color:#e2e8f0;overflow:hidden;height:100vh}
       clipped = target;
     }
 
-    // Сжатие внутрь на radius/2
+    try {
+      var reClipped = turf.intersect(clipped, countryFeature);
+      if (reClipped) clipped = reClipped;
+    } catch(e){}
+
     var halfKm = radius / 2;
     var shrinked = null;
     try { shrinked = turf.buffer(clipped, -halfKm, {units:'kilometers'}); } catch(e){}
     if (!shrinked) shrinked = clipped;
 
-    // === ВЫТЕСНЕНИЕ ПРОТИВОПОЛОЖНОГО ===
     var newStrokes = [];
     strokes.forEach(function(s){
       if (s.color !== oppositeColor) { newStrokes.push(s); return; }
@@ -354,7 +391,6 @@ body{background:#0f172a;color:#e2e8f0;overflow:hidden;height:100vh}
     saveAll();
   }
 
-  // ===== Перерисовка =====
   function redrawAll() {
     fillLayers.forEach(function(l){ map.removeLayer(l); });
     grayLayers.forEach(function(l){ map.removeLayer(l); });
@@ -363,40 +399,39 @@ body{background:#0f172a;color:#e2e8f0;overflow:hidden;height:100vh}
 
     if (!strokes.length) return;
 
-    // === СЕРЫЕ ЗОНЫ ===
-    // Для каждого штриха: буфер, но только на ПРОТИВОПОЛОЖНОЙ стране
-    var grayParts = [];
-    strokes.forEach(function(s){
-      try {
-        var buffered = turf.buffer(s.feature, s.radius / 2, {units:'kilometers'});
-        var ring = turf.difference(buffered, s.feature);
-        if (!ring) return;
-
-        // Куда пускать серую: если штрих на УКР → только РФ; если на РФ → только УКР
-        var targetCountry = (s.country === 'UKR') ? RUS : UKR;
-        // Вырезаем серую только в целевой стране
-        var clippedGray = turf.intersect(ring, targetCountry);
-        if (clippedGray) grayParts.push(clippedGray);
-      } catch(e){}
-    });
-
-    if (grayParts.length) {
-      var grayMerged = grayParts[0];
-      for (var i = 1; i < grayParts.length; i++) {
-        try { grayMerged = turf.union(grayMerged, grayParts[i]); } catch(e){}
-      }
-      // Вырезаем заливки из серого
+    // === СЕРЫЕ ЗОНЫ (только если включено) ===
+    if (showGray) {
+      var grayParts = [];
       strokes.forEach(function(s){
         try {
-          var diff = turf.difference(grayMerged, s.feature);
-          if (diff) grayMerged = diff;
+          var buffered = turf.buffer(s.feature, s.radius / 2, {units:'kilometers'});
+          var ring = buffered;
+          strokes.forEach(function(x){
+            try {
+              var d = turf.difference(ring, x.feature);
+              if (d) ring = d;
+            } catch(e){}
+          });
+          var ownCountry = s.country === 'UKR' ? UKR : RUS;
+          try {
+            var cut = turf.difference(ring, ownCountry);
+            if (cut) ring = cut;
+          } catch(e){}
+          if (ring) grayParts.push(ring);
         } catch(e){}
       });
-      var gl = L.geoJSON(grayMerged, {
-        style: { color:'#9ca3af', weight:1, fillColor:'#9ca3af', fillOpacity:0.5, dashArray:'3,3' },
-        interactive: false
-      }).addTo(map);
-      grayLayers.push(gl);
+
+      if (grayParts.length) {
+        var grayMerged = grayParts[0];
+        for (var i = 1; i < grayParts.length; i++) {
+          try { grayMerged = turf.union(grayMerged, grayParts[i]); } catch(e){}
+        }
+        var gl = L.geoJSON(grayMerged, {
+          style: { color:'#9ca3af', weight:1, fillColor:'#9ca3af', fillOpacity:0.55, dashArray:'3,3' },
+          interactive: false
+        }).addTo(map);
+        grayLayers.push(gl);
+      }
     }
 
     // === ЗАЛИВКИ ===
@@ -420,7 +455,6 @@ body{background:#0f172a;color:#e2e8f0;overflow:hidden;height:100vh}
     });
   }
 
-  // ===== Управление =====
   function undoLast(){
     if (!strokes.length) { showHint('Нет штрихов'); return; }
     strokes.pop();
@@ -430,7 +464,7 @@ body{background:#0f172a;color:#e2e8f0;overflow:hidden;height:100vh}
 
   function clearAll(){
     if (!strokes.length) return;
-    if (!confirm('Убрать все захваты?')) return;
+    if (!confirm('Убрать всё?')) return;
     strokes = [];
     redrawAll();
     saveAll();
@@ -447,4 +481,4 @@ body{background:#0f172a;color:#e2e8f0;overflow:hidden;height:100vh}
 })();
 </script>
 </body>
-</html>
+  </html>
