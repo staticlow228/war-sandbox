@@ -35,7 +35,7 @@ body{background:#0f172a;color:#e2e8f0;overflow:hidden;height:100vh}
 #legend .sw{width:14px;height:14px;border-radius:3px;border:1px solid #475569}
 #hint{position:absolute;top:60px;left:50%;transform:translateX(-50%);background:rgba(250,204,21,.95);color:#111;padding:8px 14px;border-radius:8px;font-size:12px;font-weight:600;z-index:2000;max-width:80vw;text-align:center;display:none}
 #toasts{position:absolute;bottom:120px;left:50%;transform:translateX(-50%);z-index:2500;display:flex;flex-direction:column;gap:6px;align-items:center;max-width:90vw;pointer-events:none}
-.toast{padding:10px 16px;border-radius:10px;font-size:13px;font-weight:700;box-shadow:0 4px 20px rgba(0,0,0,0.5);animation:pop 0.3s ease;white-space:nowrap;max-width:90vw;overflow:hidden;text-overflow:ellipsis}
+.toast{padding:10px 16px;border-radius:10px;font-size:13px;font-weight:700;box-shadow:0 4px 20px rgba(0,0,0,0.5);animation:pop 0.3s ease;max-width:90vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .toast.red{background:rgba(220,38,38,0.95);color:#fff;border:2px solid #fca5a5}
 .toast.blue{background:rgba(37,99,235,0.95);color:#fff;border:2px solid #93c5fd}
 @keyframes pop{0%{transform:scale(0.7);opacity:0}100%{transform:scale(1);opacity:1}}
@@ -90,11 +90,10 @@ body{background:#0f172a;color:#e2e8f0;overflow:hidden;height:100vh}
   var currentPoints = [];
   var currentPreview = null;
   var startMarker = null;
-  var STORAGE_KEY = 'war_sandbox_v23';
+  var STORAGE_KEY = 'war_sandbox_v24';
   var UKR = null, RUS = null;
 
   var CITIES = [
-    // ===== ОБЛАСТНЫЕ ЦЕНТРЫ УКРАИНЫ =====
     { name: "Киев", lat: 50.45, lon: 30.52 },
     { name: "Харьков", lat: 49.99, lon: 36.23 },
     { name: "Одесса", lat: 46.48, lon: 30.73 },
@@ -137,7 +136,7 @@ body{background:#0f172a;color:#e2e8f0;overflow:hidden;height:100vh}
     { name: "Бровары", lat: 50.51, lon: 30.79 },
     { name: "Павлоград", lat: 48.52, lon: 35.87 },
 
-    // ===== СУМСКАЯ ОБЛАСТЬ =====
+    // СУМСКАЯ ОБЛАСТЬ
     { name: "Конотоп", lat: 51.24, lon: 33.20 },
     { name: "Шостка", lat: 51.87, lon: 33.48 },
     { name: "Ахтырка", lat: 50.31, lon: 34.90 },
@@ -160,43 +159,66 @@ body{background:#0f172a;color:#e2e8f0;overflow:hidden;height:100vh}
     { name: "Бурынь", lat: 51.20, lon: 33.83 },
     { name: "Новгород-Северский", lat: 52.00, lon: 33.26 },
     { name: "Короп", lat: 51.57, lon: 32.95 },
-    { name: "Кролевец", lat: 51.55, lon: 33.38 },
     { name: "Свесса", lat: 51.95, lon: 33.97 },
     { name: "Шалыгино", lat: 51.62, lon: 33.83 },
     { name: "Хутор-Михайловский", lat: 51.83, lon: 34.05 },
-    { name: "Степановка", lat: 50.72, lon: 33.98 },
+    { name: "Степановка", lat: 50.83, lon: 34.65 },
+    { name: "Нижняя Сыроватка", lat: 50.79, lon: 34.83 },
+    { name: "Верхняя Сыроватка", lat: 50.83, lon: 34.85 },
+    { name: "Песчаное", lat: 50.87, lon: 34.72 },
+    { name: "Токари", lat: 50.87, lon: 34.90 },
+    { name: "Кияница", lat: 50.90, lon: 34.92 },
+    { name: "Хотень", lat: 50.83, lon: 34.77 },
+    { name: "Бездрик", lat: 50.83, lon: 34.95 },
+    { name: "Барвинково", lat: 50.80, lon: 34.98 },
+    { name: "Косовщина", lat: 50.85, lon: 34.75 },
+    { name: "Битица", lat: 50.93, lon: 34.78 },
+    { name: "Кровное", lat: 50.86, lon: 34.79 },
+    { name: "Корчаковка", lat: 50.88, lon: 34.95 },
+    { name: "Могрица", lat: 50.95, lon: 34.90 },
+    { name: "Чернетчина", lat: 50.31, lon: 34.87 },
+    { name: "Хухра", lat: 50.34, lon: 34.72 },
+    { name: "Кириковка", lat: 50.31, lon: 35.03 },
+    { name: "Должик", lat: 50.24, lon: 34.95 },
+    { name: "Лантратовка", lat: 50.17, lon: 35.20 },
+    { name: "Боромля", lat: 50.62, lon: 34.97 },
+    { name: "Печины", lat: 50.42, lon: 34.82 },
+    { name: "Журавное", lat: 50.35, lon: 34.53 },
+    { name: "Смородино", lat: 50.50, lon: 34.97 },
+    { name: "Камянка", lat: 50.45, lon: 34.82 },
+    { name: "Солдатское", lat: 50.42, lon: 34.90 },
+    { name: "Михайловка", lat: 50.58, lon: 34.35 },
+    { name: "Червленое", lat: 50.62, lon: 34.30 },
+    { name: "Калюжное", lat: 50.55, lon: 34.42 },
+    { name: "Межирич", lat: 50.55, lon: 34.30 },
+    { name: "Бочечки", lat: 51.15, lon: 33.35 },
+    { name: "Козацкое", lat: 51.20, lon: 33.30 },
+    { name: "Подлипное", lat: 51.30, lon: 33.30 },
+    { name: "Мучное", lat: 51.13, lon: 33.25 },
+    { name: "Воронеж", lat: 51.78, lon: 33.55 },
+    { name: "Клишки", lat: 51.75, lon: 33.40 },
+    { name: "Ивот", lat: 51.83, lon: 33.60 },
+    { name: "Ображеевка", lat: 51.90, lon: 33.55 },
+    { name: "Андрияшевка", lat: 50.68, lon: 33.35 },
+    { name: "Великие Бубны", lat: 50.55, lon: 33.35 },
+    { name: "Хмелев", lat: 50.62, lon: 33.25 },
+    { name: "Пустовойтово", lat: 50.55, lon: 33.55 },
+    { name: "Коровинцы", lat: 50.87, lon: 33.85 },
+    { name: "Хоружевка", lat: 50.75, lon: 33.90 },
+    { name: "Иваница", lat: 50.87, lon: 33.90 },
+    { name: "Славгород", lat: 50.83, lon: 35.32 },
     { name: "Угроеды", lat: 50.85, lon: 35.20 },
     { name: "Мирополье", lat: 51.02, lon: 35.15 },
-    { name: "Краснополье", lat: 50.79, lon: 35.27 },
+    { name: "Покровка", lat: 50.75, lon: 35.35 },
 
-    // ===== ХАРЬКОВСКАЯ ОБЛАСТЬ =====
-    { name: "Изюм", lat: 49.21, lon: 37.25 },
-    { name: "Балаклея", lat: 49.46, lon: 36.86 },
-    { name: "Чугуев", lat: 49.84, lon: 36.68 },
-    { name: "Лозовая", lat: 48.89, lon: 36.32 },
-    { name: "Первомайский", lat: 49.39, lon: 36.21 },
-    { name: "Волчанск", lat: 50.29, lon: 37.50 },
-    { name: "Купянск", lat: 49.71, lon: 37.62 },
-    { name: "Барвенково", lat: 48.90, lon: 36.95 },
-    { name: "Мерефа", lat: 49.81, lon: 36.05 },
-    { name: "Дергачи", lat: 50.10, lon: 36.12 },
-    { name: "Люботин", lat: 49.94, lon: 35.93 },
-    { name: "Валки", lat: 49.84, lon: 35.62 },
-    { name: "Богодухов", lat: 50.16, lon: 35.53 },
-    { name: "Ахтырка", lat: 50.31, lon: 34.90 },
-    { name: "Красноград", lat: 49.37, lon: 35.45 },
-    { name: "Змиёв", lat: 49.68, lon: 36.35 },
-    { name: "Балаклея", lat: 49.46, lon: 36.86 },
-    { name: "Савинцы", lat: 49.40, lon: 37.06 },
-    { name: "Изюм", lat: 49.21, lon: 37.25 },
-    { name: "Боровая", lat: 49.38, lon: 37.63 },
-    { name: "Купянск-Узловой", lat: 49.66, lon: 37.68 },
-    { name: "Двуречная", lat: 49.85, lon: 37.68 },
-    { name: "Шевченково", lat: 49.69, lon: 37.18 },
-    { name: "Великий Бурлук", lat: 50.06, lon: 37.40 },
-    { name: "Печенеги", lat: 49.86, lon: 36.90 },
+    // === НОВЫЕ НП ===
+    { name: "Юнаковка", lat: 51.12, lon: 34.90 },
+    { name: "Великий Бобрик", lat: 50.68, lon: 34.90 },
+    { name: "Малый Бобрик", lat: 50.65, lon: 34.85 },
+    { name: "Юсуповка", lat: 51.15, lon: 34.85 },
+    { name: "Малая Токмачка", lat: 47.50, lon: 35.90 },
 
-    // ===== ДОНЕЦКАЯ ОБЛАСТЬ =====
+    // ДОНЕЦКАЯ ОБЛАСТЬ
     { name: "Бахмут", lat: 48.60, lon: 38.00 },
     { name: "Авдеевка", lat: 48.14, lon: 37.74 },
     { name: "Угледар", lat: 47.78, lon: 37.27 },
@@ -232,42 +254,25 @@ body{background:#0f172a;color:#e2e8f0;overflow:hidden;height:100vh}
     { name: "Курдюмовка", lat: 48.45, lon: 37.95 },
     { name: "Майорск", lat: 48.41, lon: 37.97 },
     { name: "Южное", lat: 48.41, lon: 37.83 },
-    { name: "Зализное", lat: 48.43, lon: 37.90 },
     { name: "Пивничное", lat: 48.40, lon: 37.85 },
-    { name: "Ленинское", lat: 48.43, lon: 37.85 },
-    { name: "Первомайское", lat: 48.36, lon: 37.85 },
     { name: "Водяное", lat: 48.30, lon: 37.66 },
     { name: "Опытное", lat: 48.14, lon: 37.66 },
     { name: "Пески", lat: 48.10, lon: 37.68 },
     { name: "Тоненькое", lat: 48.13, lon: 37.60 },
-    { name: "Северное", lat: 48.16, lon: 37.65 },
-    { name: "Невельское", lat: 48.08, lon: 37.60 },
-    { name: "Красногоровка", lat: 48.13, lon: 37.55 },
     { name: "Старомлиновка", lat: 47.75, lon: 36.85 },
     { name: "Великая Новосёлка", lat: 47.85, lon: 36.83 },
     { name: "Никольское", lat: 47.30, lon: 37.55 },
-    { name: "Богатырь", lat: 47.65, lon: 36.80 },
-    { name: "Комсомольское", lat: 47.68, lon: 36.65 },
-    { name: "Раздольное", lat: 47.75, lon: 36.85 },
-    { name: "Стыла", lat: 47.55, lon: 37.65 },
-    { name: "Стыла", lat: 47.55, lon: 37.65 },
-    { name: "Новотроицкое", lat: 47.78, lon: 37.68 },
     { name: "Докучаевск", lat: 47.75, lon: 37.65 },
     { name: "Амвросиевка", lat: 47.79, lon: 38.48 },
-    { name: "Кутейниково", lat: 47.83, lon: 38.40 },
     { name: "Иловайск", lat: 47.93, lon: 38.22 },
     { name: "Зугрэс", lat: 48.02, lon: 38.27 },
-    { name: "Харцызск", lat: 48.04, lon: 38.15 },
-    { name: "Моспино", lat: 47.95, lon: 37.90 },
     { name: "Ждановка", lat: 48.05, lon: 38.15 },
     { name: "Кировское", lat: 48.15, lon: 38.35 },
     { name: "Дебальцево", lat: 48.34, lon: 38.43 },
     { name: "Углегорск", lat: 48.34, lon: 38.25 },
-    { name: "Никишино", lat: 48.27, lon: 38.50 },
     { name: "Ольховатка", lat: 48.25, lon: 38.40 },
-    { name: "Полесное", lat: 48.35, lon: 38.10 },
 
-    // ===== ЛУГАНСКАЯ ОБЛАСТЬ =====
+    // ЛУГАНСКАЯ ОБЛАСТЬ
     { name: "Северодонецк", lat: 48.95, lon: 38.49 },
     { name: "Лисичанск", lat: 48.90, lon: 38.44 },
     { name: "Рубежное", lat: 49.01, lon: 38.38 },
@@ -304,10 +309,31 @@ body{background:#0f172a;color:#e2e8f0;overflow:hidden;height:100vh}
     { name: "Новопсков", lat: 49.55, lon: 39.13 },
     { name: "Белокуракино", lat: 49.53, lon: 38.72 },
     { name: "Троицкое", lat: 49.92, lon: 38.28 },
-    { name: "Сватово", lat: 49.41, lon: 38.15 },
-    { name: "Кременная", lat: 49.05, lon: 38.22 },
 
-    // ===== ЗАПОРОЖСКАЯ ОБЛАСТЬ =====
+    // ХАРЬКОВСКАЯ ОБЛАСТЬ
+    { name: "Изюм", lat: 49.21, lon: 37.25 },
+    { name: "Балаклея", lat: 49.46, lon: 36.86 },
+    { name: "Чугуев", lat: 49.84, lon: 36.68 },
+    { name: "Лозовая", lat: 48.89, lon: 36.32 },
+    { name: "Первомайский", lat: 49.39, lon: 36.21 },
+    { name: "Волчанск", lat: 50.29, lon: 37.50 },
+    { name: "Купянск", lat: 49.71, lon: 37.62 },
+    { name: "Барвенково", lat: 48.90, lon: 36.95 },
+    { name: "Мерефа", lat: 49.81, lon: 36.05 },
+    { name: "Дергачи", lat: 50.10, lon: 36.12 },
+    { name: "Люботин", lat: 49.94, lon: 35.93 },
+    { name: "Валки", lat: 49.84, lon: 35.62 },
+    { name: "Богодухов", lat: 50.16, lon: 35.53 },
+    { name: "Красноград", lat: 49.37, lon: 35.45 },
+    { name: "Змиёв", lat: 49.68, lon: 36.35 },
+    { name: "Савинцы", lat: 49.40, lon: 37.06 },
+    { name: "Боровая", lat: 49.38, lon: 37.63 },
+    { name: "Двуречная", lat: 49.85, lon: 37.68 },
+    { name: "Шевченково", lat: 49.69, lon: 37.18 },
+    { name: "Великий Бурлук", lat: 50.06, lon: 37.40 },
+    { name: "Печенеги", lat: 49.86, lon: 36.90 },
+
+    // ЗАПОРОЖСКАЯ ОБЛАСТЬ
     { name: "Энергодар", lat: 47.50, lon: 34.66 },
     { name: "Токмак", lat: 47.25, lon: 35.71 },
     { name: "Пологи", lat: 47.48, lon: 36.26 },
@@ -319,8 +345,9 @@ body{background:#0f172a;color:#e2e8f0;overflow:hidden;height:100vh}
     { name: "Молочанск", lat: 47.13, lon: 35.65 },
     { name: "Приморск", lat: 46.73, lon: 36.35 },
     { name: "Розовка", lat: 47.40, lon: 36.71 },
+    { name: "Малая Токмачка", lat: 47.50, lon: 35.90 },
 
-    // ===== ХЕРСОНСКАЯ ОБЛАСТЬ =====
+    // ХЕРСОНСКАЯ ОБЛАСТЬ
     { name: "Новая Каховка", lat: 46.75, lon: 33.35 },
     { name: "Каховка", lat: 46.81, lon: 33.48 },
     { name: "Геническ", lat: 46.17, lon: 34.80 },
@@ -336,7 +363,35 @@ body{background:#0f172a;color:#e2e8f0;overflow:hidden;height:100vh}
     { name: "Ивановка", lat: 46.72, lon: 34.55 },
     { name: "Нижние Серогозы", lat: 46.85, lon: 34.42 },
 
-        // ===== ДРУГИЕ ОБЛАСТИ =====
+    // КИЕВСКАЯ ОБЛАСТЬ
+    { name: "Ирпень", lat: 50.52, lon: 30.25 },
+    { name: "Буча", lat: 50.55, lon: 30.21 },
+    { name: "Гостомель", lat: 50.57, lon: 30.27 },
+    { name: "Бородянка", lat: 50.63, lon: 29.92 },
+    { name: "Макаров", lat: 50.46, lon: 29.80 },
+    { name: "Фастов", lat: 50.07, lon: 29.92 },
+    { name: "Васильков", lat: 50.18, lon: 30.32 },
+    { name: "Обухов", lat: 50.10, lon: 30.62 },
+    { name: "Украинка", lat: 50.15, lon: 30.75 },
+    { name: "Боярка", lat: 50.32, lon: 30.30 },
+    { name: "Вишнёвое", lat: 50.38, lon: 30.37 },
+    { name: "Борисполь", lat: 50.35, lon: 30.95 },
+    { name: "Вышгород", lat: 50.58, lon: 30.50 },
+    { name: "Переяслав", lat: 50.07, lon: 31.45 },
+    { name: "Яготин", lat: 50.27, lon: 31.77 },
+    { name: "Березань", lat: 50.30, lon: 31.47 },
+    { name: "Сквира", lat: 49.73, lon: 29.67 },
+    { name: "Тараща", lat: 49.55, lon: 30.50 },
+    { name: "Богуслав", lat: 49.55, lon: 30.87 },
+    { name: "Мироновка", lat: 49.65, lon: 30.97 },
+    { name: "Кагарлык", lat: 49.85, lon: 30.82 },
+    { name: "Ставище", lat: 49.40, lon: 30.20 },
+    { name: "Тетиев", lat: 49.38, lon: 29.67 },
+    { name: "Володарка", lat: 49.55, lon: 29.75 },
+    { name: "Полесское", lat: 51.10, lon: 29.65 },
+    { name: "Иванков", lat: 50.93, lon: 29.90 },
+
+    // ДРУГИЕ ОБЛАСТИ
     { name: "Ковель", lat: 51.21, lon: 24.71 },
     { name: "Коломыя", lat: 48.53, lon: 25.04 },
     { name: "Умань", lat: 48.75, lon: 30.22 },
@@ -459,7 +514,6 @@ body{background:#0f172a;color:#e2e8f0;overflow:hidden;height:100vh}
       UKR = res[0]; RUS = res[1];
       if (!UKR || !RUS) { document.getElementById('load').textContent = 'Не нашёл'; return; }
 
-      // === Вырезаем Украину из России, чтобы границы совпадали ===
       var RUS_cut = RUS;
       try {
         var cut = turf.difference(RUS, UKR);
@@ -611,7 +665,6 @@ body{background:#0f172a;color:#e2e8f0;overflow:hidden;height:100vh}
       if (reClipped) clipped = reClipped;
     } catch(e){}
 
-    // Проверка городов
     var captured = [];
     CITIES.forEach(function(c) {
       var pt = turf.point([c.lon, c.lat]);
@@ -625,7 +678,6 @@ body{background:#0f172a;color:#e2e8f0;overflow:hidden;height:100vh}
       } catch(e){}
     });
 
-    // Вытеснение
     var newStrokes = [];
     strokes.forEach(function(s){
       if (s.color !== oppositeColor) { newStrokes.push(s); return; }
@@ -637,7 +689,6 @@ body{background:#0f172a;color:#e2e8f0;overflow:hidden;height:100vh}
     strokes = newStrokes;
     strokes.push({ feature: clipped, color: color });
 
-    // Уведомления
     var sideName = color === '#dc2626' ? 'ВС РФ' : 'ВСУ';
     if (captured.length) {
       if (captured.length <= 3) {
