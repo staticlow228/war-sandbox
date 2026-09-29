@@ -11,14 +11,12 @@
 body{background:#000;color:#e2e8f0;overflow:hidden;height:100vh}
 #map{position:absolute;inset:0;background:#000;z-index:1;touch-action:none}
 .hidden{display:none!important}
-
 #load{position:fixed;inset:0;z-index:9999;background:#000;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:16px;text-align:center;padding:20px;color:#e2e8f0}
 #load .title{font-size:26px;font-weight:800;color:#facc15;margin-bottom:10px}
 #load .sub{font-size:14px;color:#94a3b8;margin-bottom:20px}
 #load .spinner{width:40px;height:40px;border:3px solid #1e293b;border-top-color:#facc15;border-radius:50%;animation:spin 1s linear infinite;margin-bottom:14px}
 #load .status{font-size:13px;color:#cbd5e1}
 @keyframes spin{to{transform:rotate(360deg)}}
-
 #panel{position:absolute;bottom:10px;left:8px;width:250px;background:rgba(0,0,0,.95);border:1px solid #1e293b;padding:10px;border-radius:12px;z-index:1000;font-size:11px;max-height:88vh;overflow-y:auto}
 #panel .header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
 #panel .header span{font-weight:600;color:#cbd5e1}
@@ -38,9 +36,7 @@ body{background:#000;color:#e2e8f0;overflow:hidden;height:100vh}
 #panel .sliderLabel{display:flex;justify-content:space-between;color:#cbd5e1;font-size:11px;margin-bottom:4px;margin-top:6px}
 #panel .sliderLabel span:last-child{color:#facc15;font-weight:600}
 #panel input[type=range]{width:100%;margin-bottom:4px}
-
 #openBtn{position:absolute;bottom:10px;left:8px;width:44px;height:44px;background:rgba(0,0,0,.95);border:1px solid #1e293b;border-radius:50%;color:#e2e8f0;font-size:20px;cursor:pointer;z-index:1000;display:flex;align-items:center;justify-content:center}
-
 #hint{position:absolute;top:20px;left:50%;transform:translateX(-50%);background:rgba(250,204,21,.95);color:#111;padding:8px 14px;border-radius:8px;font-size:12px;font-weight:600;z-index:2000;max-width:80vw;text-align:center;display:none}
 </style>
 </head>
@@ -52,7 +48,7 @@ body{background:#000;color:#e2e8f0;overflow:hidden;height:100vh}
   <div class="title">⚔️ War Sandbox Ukraine</div>
   <div class="sub">Loading map...</div>
   <div class="spinner"></div>
-  <div class="status" id="loadStatus">Loading borders...</div>
+  <div class="status" id="loadStatus">Loading borders (10m, ~30s)...</div>
 </div>
 
 <button id="openBtn" class="hidden">🎨</button>
@@ -75,7 +71,7 @@ body{background:#000;color:#e2e8f0;overflow:hidden;height:100vh}
 
   <div class="section">
     <div class="sectionTitle" id="lblMapTitle">🗺 Map</div>
-    <button class="mapBtn active" data-map="osm" id="lblOSM">🗺 OpenStreetMap</button>
+    <button class="mapBtn active" data-map="osm">🗺 OpenStreetMap</button>
     <button class="mapBtn" data-map="topo" id="lblTopo">🌍 Topo</button>
     <button class="mapBtn" data-map="sat" id="lblSat">🛰 Satellite</button>
     <button class="mapBtn" data-map="hybrid" id="lblHybrid">🛰🏙 Satellite + labels</button>
@@ -110,7 +106,6 @@ body{background:#000;color:#e2e8f0;overflow:hidden;height:100vh}
 
   var COLOR_BLUE = '#0ea5e9';
   var COLOR_RED = '#dc2626';
-  var COLOR_GRAY = '#9ca3af';
 
   var currentColor = COLOR_BLUE;
   var grayZoneKm = 4;
@@ -118,72 +113,33 @@ body{background:#000;color:#e2e8f0;overflow:hidden;height:100vh}
   var currentPoints = [];
   var currentPreview = null;
   var startMarker = null;
-  var STORAGE_KEY = 'war_sandbox_v700';
-  var LANG_KEY = 'war_sandbox_lang_v1';
+  var LANG_KEY = 'war_sandbox_lang_v4';
 
   var currentLang = 'en';
 
-  // Штрихи: { feature, color, radius }
   var strokes = [];
-  var layers = [];
 
-  // ===== ПЕРЕВОДЫ =====
   var TRANSLATIONS = {
-    en: {
-      panel:'🎨 Panel', blue:'🔵 Blue', red:'🔴 Red',
-      gray:'📏 Gray zone', map:'🗺 Map',
-      topo:'🌍 Topo', sat:'🛰 Satellite', hybrid:'🛰🏙 Satellite + labels',
-      lang:'🌐 Language',
-      draw:'✏️ Enable brush', drawStop:'✖ Stop',
-      undo:'↩ Undo last', reset:'🗑 Reset all',
-      hintDraw:'Draw on the map',
-      hintTooShort:'Too short',
-      hintReset:'All territories cleared'
-    },
-    ru: {
-      panel:'🎨 Панель', blue:'🔵 Голубой', red:'🔴 Красный',
-      gray:'📏 Серая зона', map:'🗺 Карта',
-      topo:'🌍 Топо', sat:'🛰 Спутник', hybrid:'🛰🏙 Спутник + названия',
-      lang:'🌐 Язык',
-      draw:'✏️ Включить кисть', drawStop:'✖ Стоп',
-      undo:'↩ Убрать последний', reset:'🗑 Сбросить всё',
-      hintDraw:'Рисуй на карте',
-      hintTooShort:'Слишком коротко',
-      hintReset:'Все территории сброшены'
-    },
-    uk: {
-      panel:'🎨 Панель', blue:'🔵 Блакитний', red:'🔴 Червоний',
-      gray:'📏 Сіра зона', map:'🗺 Карта',
-      topo:'🌍 Топо', sat:'🛰 Супутник', hybrid:'🛰🏙 Супутник + назви',
-      lang:'🌐 Мова',
-      draw:'✏️ Увімкнути пензель', drawStop:'✖ Стоп',
-      undo:'↩ Прибрати останній', reset:'🗑 Скинути все',
-      hintDraw:'Малюй на карті',
-      hintTooShort:'Занадто коротко',
-      hintReset:'Усі території скинуті'
-    },
-    be: {
-      panel:'🎨 Панэль', blue:'🔵 Блакітны', red:'🔴 Чырвоны',
-      gray:'📏 Шэрая зона', map:'🗺 Карта',
-      topo:'🌍 Топа', sat:'🛰 Спадарожнік', hybrid:'🛰🏙 Спадарожнік + назвы',
-      lang:'🌐 Мова',
-      draw:'✏️ Уключыць пэндзаль', drawStop:'✖ Стоп',
-      undo:'↩ Прыбраць апошні', reset:'🗑 Скінуць усё',
-      hintDraw:'Малюй на карце',
-      hintTooShort:'Занадта каротка',
-      hintReset:'Усе тэрыторыі скінуты'
-    },
-    pl: {
-      panel:'🎨 Panel', blue:'🔵 Niebieski', red:'🔴 Czerwony',
-      gray:'📏 Strefa szara', map:'🗺 Mapa',
-      topo:'🌍 Topo', sat:'🛰 Satelita', hybrid:'🛰🏙 Satelita + nazwy',
-      lang:'🌐 Język',
-      draw:'✏️ Włącz pędzel', drawStop:'✖ Stop',
-      undo:'↩ Cofnij ostatni', reset:'🗑 Zresetuj wszystko',
-      hintDraw:'Rysuj na mapie',
-      hintTooShort:'Za krótko',
-      hintReset:'Wszystkie terytoria wyczyszczone'
-    }
+    en: { panel:'🎨 Panel', blue:'🔵 Blue', red:'🔴 Red', gray:'📏 Gray zone', map:'🗺 Map',
+      topo:'🌍 Topo', sat:'🛰 Satellite', hybrid:'🛰🏙 Satellite + labels', lang:'🌐 Language',
+      draw:'✏️ Enable brush', drawStop:'✖ Stop', undo:'↩ Undo last', reset:'🗑 Reset all',
+      hintDraw:'Draw on the map', hintTooShort:'Too short', hintReset:'All territories cleared' },
+    ru: { panel:'🎨 Панель', blue:'🔵 Голубой', red:'🔴 Красный', gray:'📏 Серая зона', map:'🗺 Карта',
+      topo:'🌍 Топо', sat:'🛰 Спутник', hybrid:'🛰🏙 Спутник + названия', lang:'🌐 Язык',
+      draw:'✏️ Включить кисть', drawStop:'✖ Стоп', undo:'↩ Убрать последний', reset:'🗑 Сбросить всё',
+      hintDraw:'Рисуй на карте', hintTooShort:'Слишком коротко', hintReset:'Все территории сброшены' },
+    uk: { panel:'🎨 Панель', blue:'🔵 Блакитний', red:'🔴 Червоний', gray:'📏 Сіра зона', map:'🗺 Карта',
+      topo:'🌍 Топо', sat:'🛰 Супутник', hybrid:'🛰🏙 Супутник + назви', lang:'🌐 Мова',
+      draw:'✏️ Увімкнути пензель', drawStop:'✖ Стоп', undo:'↩ Прибрати останній', reset:'🗑 Скинути все',
+      hintDraw:'Малюй на карті', hintTooShort:'Занадто коротко', hintReset:'Усі території скинуті' },
+    be: { panel:'🎨 Панэль', blue:'🔵 Блакітны', red:'🔴 Чырвоны', gray:'📏 Шэрая зона', map:'🗺 Карта',
+      topo:'🌍 Топа', sat:'🛰 Спадарожнік', hybrid:'🛰🏙 Спадарожнік + назвы', lang:'🌐 Мова',
+      draw:'✏️ Уключыць пэндзаль', drawStop:'✖ Стоп', undo:'↩ Прыбраць апошні', reset:'🗑 Скінуць усё',
+      hintDraw:'Малюй на карце', hintTooShort:'Занадта каротка', hintReset:'Усе тэрыторыі скінуты' },
+    pl: { panel:'🎨 Panel', blue:'🔵 Niebieski', red:'🔴 Czerwony', gray:'📏 Strefa szara', map:'🗺 Mapa',
+      topo:'🌍 Topo', sat:'🛰 Satelita', hybrid:'🛰🏙 Satelita + nazwy', lang:'🌐 Język',
+      draw:'✏️ Włącz pędzel', drawStop:'✖ Stop', undo:'↩ Cofnij ostatni', reset:'🗑 Zresetuj wszystko',
+      hintDraw:'Rysuj na mapie', hintTooShort:'Za krótko', hintReset:'Wszystkie terytoria wyczyszczone' }
   };
 
   function t(key) {
@@ -193,10 +149,8 @@ body{background:#000;color:#e2e8f0;overflow:hidden;height:100vh}
   // ===== ИНИЦИАЛИЗАЦИЯ =====
   function init() {
     map = L.map('map', { zoomControl: true, attributionControl: false }).setView([49, 32], 6);
-
     setMapLayer('osm');
 
-    // Карты
     document.querySelectorAll('.mapBtn').forEach(function(btn) {
       btn.addEventListener('click', function() {
         document.querySelectorAll('.mapBtn').forEach(function(x) { x.classList.remove('active'); });
@@ -205,7 +159,6 @@ body{background:#000;color:#e2e8f0;overflow:hidden;height:100vh}
       });
     });
 
-    // Языки
     document.querySelectorAll('.langBtn').forEach(function(btn) {
       btn.addEventListener('click', function() {
         currentLang = btn.getAttribute('data-lang');
@@ -216,7 +169,6 @@ body{background:#000;color:#e2e8f0;overflow:hidden;height:100vh}
       });
     });
 
-    // Восстановление языка
     try {
       var savedLang = localStorage.getItem(LANG_KEY);
       if (savedLang && TRANSLATIONS[savedLang]) currentLang = savedLang;
@@ -225,7 +177,6 @@ body{background:#000;color:#e2e8f0;overflow:hidden;height:100vh}
       b.classList.toggle('active', b.getAttribute('data-lang') === currentLang);
     });
 
-    // Кисти
     document.getElementById('brushBlue').addEventListener('click', function() {
       currentColor = COLOR_BLUE;
       this.classList.add('active');
@@ -237,13 +188,12 @@ body{background:#000;color:#e2e8f0;overflow:hidden;height:100vh}
       document.getElementById('brushBlue').classList.remove('active');
     });
 
-    // Ползунок серой зоны
     document.getElementById('graySlider').addEventListener('input', function() {
       grayZoneKm = parseInt(this.value);
       document.getElementById('grayVal').textContent = grayZoneKm + ' km';
+      redrawAll();
     });
 
-    // Кнопки
     document.getElementById('drawBtn').addEventListener('click', toggleDraw);
     document.getElementById('undoBtn').addEventListener('click', undoLast);
     document.getElementById('resetBtn').addEventListener('click', resetAll);
@@ -256,7 +206,6 @@ body{background:#000;color:#e2e8f0;overflow:hidden;height:100vh}
       document.getElementById('openBtn').classList.add('hidden');
     });
 
-    // События рисования
     var container = map.getContainer();
     container.addEventListener('touchstart', handleStart, { passive: false });
     container.addEventListener('touchmove', handleMove, { passive: false });
@@ -304,14 +253,14 @@ body{background:#000;color:#e2e8f0;overflow:hidden;height:100vh}
       opts.maxZoom = 20; opts.subdomains = ['mt0','mt1','mt2','mt3'];
     }
     baseLayer = L.tileLayer(url, opts).addTo(map);
-    layers.forEach(function(l) { if (map.hasLayer(l)) l.bringToFront(); });
   }
 
   function loadData() {
-    setStatus(currentLang === 'ru' ? 'Загрузка границ...' : 'Loading borders...');
+    setStatus('Loading borders (10m, ~30s)...');
     fetch('https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_10m_admin_0_countries.geojson')
       .then(function(r) { return r.json(); })
       .then(function(data) {
+        setStatus('Building map...');
         var ukr = data.features.find(function(f) {
           var c = f.properties.ADM0_A3 || f.properties.adm0_a3 || '';
           return c === 'UKR';
@@ -323,6 +272,7 @@ body{background:#000;color:#e2e8f0;overflow:hidden;height:100vh}
         if (!ukr || !rus_full) { setStatus('Not found'); return; }
 
         // Обрезаем РФ по 60 в.д.
+        setStatus('Clipping Russia...');
         var clipBox = turf.bboxPolygon([19, 41, 60, 82]);
         var rus = null;
         try { rus = turf.intersect(rus_full, clipBox); } catch(e) { rus = rus_full; }
@@ -331,12 +281,13 @@ body{background:#000;color:#e2e8f0;overflow:hidden;height:100vh}
         UKR = ukr;
         RUS = rus;
 
-        // Начальное состояние: УКР голубая, РФ красная
         strokes = [
           { feature: UKR, color: COLOR_BLUE, radius: grayZoneKm },
           { feature: RUS, color: COLOR_RED, radius: grayZoneKm }
         ];
         redrawAll();
+
+        try { map.fitBounds(L.geoJSON(UKR).getBounds(), { padding: [20, 20] }); } catch(e) {}
 
         document.getElementById('load').style.display = 'none';
         document.getElementById('panel').classList.remove('hidden');
@@ -349,7 +300,6 @@ body{background:#000;color:#e2e8f0;overflow:hidden;height:100vh}
     if (el) el.textContent = txt;
   }
 
-  // ===== РИСОВАНИЕ =====
   function toggleDraw() {
     drawMode = !drawMode;
     var btn = document.getElementById('drawBtn');
@@ -422,114 +372,98 @@ body{background:#000;color:#e2e8f0;overflow:hidden;height:100vh}
     if (first[0] !== last[0] || first[1] !== last[1]) coords.push([first[0], first[1]]);
     var drawn = { type: 'Feature', geometry: { type: 'Polygon', coordinates: [coords] }, properties: {} };
 
-    // Обрезаем по объединённой территории УКР+РФ (не вылезает за пределы)
     var unionAll = null;
     try { unionAll = turf.union(UKR, RUS); } catch(e) { unionAll = UKR; }
     var clipped = null;
     try { clipped = turf.intersect(drawn, unionAll); } catch(e) {}
     if (!clipped) { showHint('Outside'); return; }
 
-    strokes.push({ feature: clipped, color: color, radius: grayZoneKm });
-    animateStroke(clipped, color);
-  }
-
-  function animateStroke(shape, color) {
-    var duration = 900;
-    var start = Date.now();
-    var grayLayer = null;
-    var fillLayer = null;
-
-    // Используем bounding box для роста
-    var bbox = turf.bbox(shape);
-    var centerLat = (bbox[1] + bbox[3]) / 2;
-    var centerLon = (bbox[0] + bbox[2]) / 2;
-
-    function step() {
-      var now = Date.now();
-      var p = (now - start) / duration;
-      if (p > 1) p = 1;
-
-      if (grayLayer) { map.removeLayer(grayLayer); grayLayer = null; }
-      if (fillLayer) { map.removeLayer(fillLayer); fillLayer = null; }
-
-      // Растущий масштаб от центра
-      var scale = 0.2 + 0.8 * p;
-
-      // === 1. Серая зона — на первом этапе (p 0–0.5) ===
-      if (p <= 0.55) {
-        try {
-          var grayBuf = turf.buffer(shape, grayZoneKm, { units: 'kilometers' });
-          if (grayBuf) {
-            // Уменьшаем до scale
-            var scaled = scaleFeature(grayBuf, centerLat, centerLon, scale);
-            grayLayer = L.geoJSON(scaled, {
-              style: { color: '#9ca3af', weight: 1, fillColor: '#9ca3af', fillOpacity: 0.45, dashArray: '4,4' },
-              interactive: false
-            }).addTo(map);
-          }
-        } catch(e) {}
-      }
-
-      // === 2. Цвет — на втором этапе (p 0.5–1) ===
-      if (p >= 0.5) {
-        try {
-          var p2 = (p - 0.5) / 0.5;
-          var scale2 = 0.3 + 0.7 * p2;
-          var scaledShape = scaleFeature(shape, centerLat, centerLon, scale2);
-          fillLayer = L.geoJSON(scaledShape, {
-            style: { color: color, weight: 1.5, fillColor: color, fillOpacity: 0.45 },
-            interactive: false
-          }).addTo(map);
-        } catch(e) {}
-      }
-
-      if (p < 1) {
-        requestAnimationFrame(step);
-      } else {
-        if (grayLayer) { map.removeLayer(grayLayer); grayLayer = null; }
-        if (fillLayer) { map.removeLayer(fillLayer); fillLayer = null; }
-        redrawAll();
-      }
-    }
-
-    requestAnimationFrame(step);
-  }
-
-  // Уменьшить/увеличить фичу относительно центра (простая аппроксимация)
-  function scaleFeature(feature, centerLat, centerLon, scale) {
-    try {
-      // turf.transformScale — масштабирует относительно центра
-      return turf.transformScale(feature, scale);
-    } catch(e) {
-      return feature;
-    }
-  }
-
-  // ===== ПЕРЕРИСОВКА =====
-  function redrawAll() {
-    layers.forEach(function(l) { map.removeLayer(l); });
-    layers = [];
-
+    // Вытеснение противоположного цвета
+    var oppositeColor = (color === COLOR_BLUE) ? COLOR_RED : COLOR_BLUE;
+    var newStrokes = [];
     strokes.forEach(function(s) {
-      // Серая зона
+      if (s.color !== oppositeColor) {
+        newStrokes.push(s);
+        return;
+      }
       try {
-        var grayBuf = turf.buffer(s.feature, s.radius, { units: 'kilometers' });
-        // Делаем кольцо: буфер - фича
-        var ring = turf.difference(grayBuf, s.feature);
-        if (ring) {
-          var grayLayer = L.geoJSON(ring, {
-            style: { color: '#9ca3af', weight: 1, fillColor: '#9ca3af', fillOpacity: 0.35, dashArray: '4,4' },
-            interactive: false
-          }).addTo(map);
-          layers.push(grayLayer);
-        }
-      } catch(e) {}
+        var diff = turf.difference(s.feature, clipped);
+        if (diff) newStrokes.push({ feature: diff, color: s.color, radius: s.radius });
+      } catch(e) { newStrokes.push(s); }
+    });
+    strokes = newStrokes;
+    strokes.push({ feature: clipped, color: color, radius: grayZoneKm });
 
-      // Основная заливка — БЕЗ обводки
-      var fl = L.geoJSON(s.feature, {
-        style: { color: s.color, weight: 0, fillColor: s.color, fillOpacity: 0.45 }
+    redrawAll();
+  }
+
+  // ===== ПЕРЕРИСОВКА — ОБЪЕДИНЕНИЕ ПО ЦВЕТАМ + ОБЪЕДИНЕНИЕ СЕРОЙ ===
+  function redrawAll() {
+    if (window._layers) {
+      window._layers.forEach(function(l) { if (map.hasLayer(l)) map.removeLayer(l); });
+    }
+    window._layers = [];
+
+    if (!strokes.length) return;
+
+    // Группируем по цвету и объединяем
+    var byColor = {};
+    strokes.forEach(function(s) {
+      if (!byColor[s.color]) byColor[s.color] = [];
+      byColor[s.color].push(s.feature);
+    });
+
+    var mergedByColor = {};
+    Object.keys(byColor).forEach(function(color) {
+      var list = byColor[color];
+      var merged = list[0];
+      for (var i = 1; i < list.length; i++) {
+        try { merged = turf.union(merged, list[i]); } catch(e) {}
+      }
+      mergedByColor[color] = merged;
+    });
+
+    // Серая зона — объединённая
+    var grayParts = [];
+    Object.keys(mergedByColor).forEach(function(color) {
+      var shape = mergedByColor[color];
+      var radius = grayZoneKm;
+      strokes.forEach(function(s) {
+        if (s.color === color && s.radius > radius) radius = s.radius;
+      });
+      try {
+        var buf = turf.buffer(shape, radius, { units: 'kilometers' });
+        var ring = turf.difference(buf, shape);
+        if (ring) grayParts.push(ring);
+      } catch(e) {}
+    });
+
+    if (grayParts.length) {
+      var grayMerged = grayParts[0];
+      for (var j = 1; j < grayParts.length; j++) {
+        try { grayMerged = turf.union(grayMerged, grayParts[j]); } catch(e) {}
+      }
+      // Вырезаем цветные заливки из серой
+      Object.keys(mergedByColor).forEach(function(color) {
+        try {
+          var diff = turf.difference(grayMerged, mergedByColor[color]);
+          if (diff) grayMerged = diff;
+        } catch(e) {}
+      });
+
+      var gl = L.geoJSON(grayMerged, {
+        style: { color: '#9ca3af', weight: 1, fillColor: '#9ca3af', fillOpacity: 0.4, dashArray: '4,4' },
+        interactive: false
       }).addTo(map);
-      layers.push(fl);
+      window._layers.push(gl);
+    }
+
+    // Цветные заливки — без обводки
+    Object.keys(mergedByColor).forEach(function(color) {
+      var fl = L.geoJSON(mergedByColor[color], {
+        style: { color: color, weight: 0, fillColor: color, fillOpacity: 0.5 }
+      }).addTo(map);
+      window._layers.push(fl);
     });
   }
 
