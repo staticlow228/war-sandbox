@@ -997,78 +997,90 @@ body{background:#000;color:#e2e8f0;overflow:hidden;height:100vh}
   }
 
   function addStroke(pts, color) {
-    if (!UKR || !RUS) return;
-    var coords = pts.map(function(p){ return [p[1], p[0]]; });
-    var first = coords[0], last = coords[coords.length-1];
-    if (first[0] !== last[0] || first[1] !== last[1]) coords.push([first[0], first[1]]);
-    var drawn = { type: 'Feature', geometry: { type: 'Polygon', coordinates: [coords] }, properties: {} };
+  if (!UKR || !RUS) return;
+  var coords = pts.map(function(p){ return [p[1], p[0]]; });
+  var first = coords[0], last = coords[coords.length-1];
+  if (first[0] !== last[0] || first[1] !== last[1]) coords.push([first[0], first[1]]);
+  var drawn = { type: 'Feature', geometry: { type: 'Polygon', coordinates: [coords] }, properties: {} };
 
-    var unionAll = null;
-    try { unionAll = turf.union(UKR, RUS); } catch(e){ unionAll = UKR; }
+  var unionAll = null;
+  try { unionAll = turf.union(UKR, RUS); } catch(e){ unionAll = UKR; }
+  var clipped = null;
+  try { clipped = turf.intersect(drawn, unionAll); } catch(e){}
+  if (!clipped) { showHint('За пределами карты'); return; }
 
-    var clipped = null;
-    try { clipped = turf.intersect(drawn, unionAll); } catch(e){}
-    if (!clipped) { showHint('За пределами карты'); return; }
+  var partUkr = null, partRus = null;
+  try { partUkr = turf.intersect(clipped, UKR); } catch(e){}
+  try { partRus = turf.intersect(clipped, RUS); } catch(e){}
 
-    var centerPt = turf.center(clipped);
-    var inUkr = false;
-    try { inUkr = turf.booleanPointInPolygon(centerPt, UKR); } catch(e){}
-    var country = inUkr ? 'UKR' : 'RUS';
+  var oppositeColor = (color === '#dc2626') ? '#2563eb' : '#dc2626';
+  var parts = [];
 
-    var oppositeColor = (color === '#dc2626') ? '#2563eb' : '#dc2626';
-    var needIntersection = false;
-    if (color === '#dc2626' && country === 'RUS') needIntersection = true;
-    if (color === '#2563eb' && country === 'UKR') needIntersection = true;
-    if (needIntersection) {
-      var target = intersectWithColor(clipped, oppositeColor);
-      if (!target) {
-        showHint('❌ Здесь нет ' + (oppositeColor === '#dc2626' ? 'красного' : 'синего'));
-        return;
-      }
-      clipped = target;
+  if (color === '#dc2626') {
+    if (partUkr) parts.push(partUkr);
+    if (partRus) {
+      var t = intersectWithColor(partRus, oppositeColor);
+      if (t) parts.push(t);
     }
-
-    var captured = [];
-    CITIES.forEach(function(c) {
-      var pt = turf.point([c.lon, c.lat]);
-      try {
-        if (turf.booleanPointInPolygon(pt, clipped)) {
-          if (cityOwners[c.name] !== color) {
-            captured.push(c.name);
-            cityOwners[c.name] = color;
-          }
-        }
-      } catch(e){}
-    });
-
-    var newStrokes = [];
-    strokes.forEach(function(s){
-      if (s.color !== oppositeColor) { newStrokes.push(s); return; }
-      try {
-        var diff = turf.difference(s.feature, clipped);
-        if (diff) newStrokes.push({ feature: diff, color: s.color });
-      } catch(e){ newStrokes.push(s); }
-    });
-    strokes = newStrokes;
-    strokes.push({ feature: clipped, color: color });
-
-    var sideName = color === '#dc2626' ? 'ВС РФ' : 'ВСУ';
-    if (captured.length) {
-      if (captured.length <= 3) {
-        captured.forEach(function(n){
-          showToast('📍 ' + n + ' перешёл под контроль ' + sideName, color);
-        });
-      } else {
-        showToast('📍 ' + captured.length + ' НП перешли под контроль ' + sideName, color);
-        captured.slice(0, 2).forEach(function(n){
-          showToast('📍 ' + n, color);
-        });
-      }
+  } else {
+    if (partRus) parts.push(partRus);
+    if (partUkr) {
+      var t2 = intersectWithColor(partUkr, oppositeColor);
+      if (t2) parts.push(t2);
     }
-
-    redrawAll();
-    saveAll();
   }
+
+  if (!parts.length) {
+    showHint('❌ Нельзя рисовать здесь этой кистью');
+    return;
+  }
+
+  var finalShape = parts[0];
+  for (var i = 1; i < parts.length; i++) {
+    try { finalShape = turf.union(finalShape, parts[i]); } catch(e){}
+  }
+
+  var captured = [];
+  CITIES.forEach(function(c) {
+    var pt = turf.point([c.lon, c.lat]);
+    try {
+      if (turf.booleanPointInPolygon(pt, finalShape)) {
+        if (cityOwners[c.name] !== color) {
+          captured.push(c.name);
+          cityOwners[c.name] = color;
+        }
+      }
+    } catch(e){}
+  });
+
+  var newStrokes = [];
+  strokes.forEach(function(s){
+    if (s.color !== oppositeColor) { newStrokes.push(s); return; }
+    try {
+      var diff = turf.difference(s.feature, finalShape);
+      if (diff) newStrokes.push({ feature: diff, color: s.color });
+    } catch(e){ newStrokes.push(s); }
+  });
+  strokes = newStrokes;
+  strokes.push({ feature: finalShape, color: color });
+
+  var sideName = color === '#dc2626' ? 'ВС РФ' : 'ВСУ';
+  if (captured.length) {
+    if (captured.length <= 3) {
+      captured.forEach(function(n){
+        showToast('📍 ' + n + ' перешёл под контроль ' + sideName, color);
+      });
+    } else {
+      showToast('📍 ' + captured.length + ' НП перешли под контроль ' + sideName, color);
+      captured.slice(0, 2).forEach(function(n){
+        showToast('📍 ' + n, color);
+      });
+    }
+  }
+
+  redrawAll();
+  saveAll();
+      }
 
   function showToast(text, color) {
     var cont = document.getElementById('toasts');
