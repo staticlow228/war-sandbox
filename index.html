@@ -1303,9 +1303,28 @@ var CITIES = [
       return a._dist - b._dist;
     });
 
-    // 4. Фильтр: атакуем только фронтовые (до 60 км) + не тыл
-    var front = targets.filter(function(t) { return t._dist <= 60; });
-    if (!front.length) front = targets.slice(0, 3);
+// 4. Фильтр: атакуем ТОЛЬКО фронтовые — где рядом есть своя территория
+var front = targets.filter(function(t) {
+  if (t._dist > 60) return false;
+  var enemyCount = 0;
+  var ownCount = 0;
+  CITIES.forEach(function(c) {
+    var d = Math.sqrt(Math.pow(c.lat - t.lat, 2) + Math.pow(c.lon - t.lon, 2)) * 111;
+    if (d <= 30) {
+      if (cityOwners[c.name] === aiColor) ownCount++;
+      else if (cityOwners[c.name] === playerColor) enemyCount++;
+    }
+  });
+  if (ownCount === 0) return false;
+  if (enemyCount > ownCount * 3) return false;
+  return true;
+});
+if (!front.length) {
+  front = targets.filter(function(t) { return t._dist <= 40; });
+}
+if (!front.length) {
+  showToast('🤖 Нет фронтовых целей', aiColor);
+  turn = 'player'; updateTurnUI(); return;
 
     // 5. Выбираем N = aiSpeed целей с фильтром расстояния между атаками (24 км)
     var finalTargets = [];
