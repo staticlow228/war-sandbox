@@ -11,42 +11,45 @@
 body{background:#000;color:#e2e8f0;overflow:hidden;height:100vh}
 #map{position:absolute;inset:0;background:#000;z-index:1;touch-action:none}
 .hidden{display:none!important}
+
 #load{position:fixed;inset:0;z-index:9999;background:#000;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:16px;text-align:center;padding:20px;color:#e2e8f0}
-#load .title{font-size:28px;font-weight:800;color:#facc15;margin-bottom:10px;letter-spacing:1px;text-shadow:0 2px 10px rgba(250,204,21,0.4)}
+#load .title{font-size:28px;font-weight:800;color:#facc15;margin-bottom:10px;letter-spacing:1px}
 #load .sub{font-size:14px;color:#94a3b8;margin-bottom:20px}
 #load .spinner{width:40px;height:40px;border:3px solid #1e293b;border-top-color:#facc15;border-radius:50%;animation:spin 1s linear infinite;margin-bottom:14px}
 #load .status{font-size:13px;color:#cbd5e1}
 @keyframes spin{to{transform:rotate(360deg)}}
 
-#sideSelect{position:fixed;inset:0;z-index:9998;background:#000;display:none;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:20px;text-align:center}
-#sideSelect .title{font-size:28px;font-weight:800;color:#facc15;letter-spacing:1px}
-#sideSelect .sub{font-size:14px;color:#94a3b8}
-#sideSelect .sideRow{display:flex;gap:14px;margin-top:20px;flex-wrap:wrap;justify-content:center}
-#sideSelect .sideBtn{width:140px;height:140px;border-radius:18px;border:3px solid #1e293b;background:#0f172a;color:#fff;font-size:18px;font-weight:700;cursor:pointer;line-height:1.8;transition:all .2s}
-#sideSelect .sideBtn:active{transform:scale(0.95);border-color:#facc15}
+#modeSelect,#sideSelect{position:fixed;inset:0;z-index:9998;background:#000;display:none;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:20px;text-align:center}
+#modeSelect .title,#sideSelect .title{font-size:26px;font-weight:800;color:#facc15}
+#modeSelect .sub,#sideSelect .sub{font-size:14px;color:#94a3b8}
+#modeSelect .sideRow,#sideSelect .sideRow{display:flex;gap:14px;margin-top:20px;flex-wrap:wrap;justify-content:center}
+#modeSelect .modeBtn,#sideSelect .sideBtn{width:150px;height:150px;border-radius:18px;border:3px solid #1e293b;background:#0f172a;color:#fff;font-size:18px;font-weight:700;cursor:pointer;line-height:1.5}
+#modeSelect .modeBtn:active,#sideSelect .sideBtn:active{transform:scale(.95);border-color:#facc15}
+#modeSelect .modeBtn[data-mode="war"]{background:#7f1d1d;border-color:#ef4444}
+#modeSelect .modeBtn[data-mode="sandbox"]{background:#1e3a8a;border-color:#3b82f6}
 #sideSelect .sideBtn[data-side="UKR"]{background:#1e3a8a;border-color:#3b82f6}
 #sideSelect .sideBtn[data-side="RUS"]{background:#7f1d1d;border-color:#ef4444}
 #sideSelect .sliderBlock{margin-top:30px;display:flex;flex-direction:column;align-items:center;gap:6px}
-#sideSelect input[type=range]{width:200px}
+#sideSelect input[type=range]{width:220px}
 #sideSelect #aiSpeedLabel{color:#facc15;font-weight:700;font-size:18px}
 
-#panel{position:absolute;bottom:10px;left:8px;width:240px;background:rgba(0,0,0,.95);border:1px solid #1e293b;padding:10px;border-radius:12px;z-index:1000;font-size:11px;max-height:80vh;overflow-y:auto}
+#panel{position:absolute;bottom:10px;left:8px;width:240px;background:rgba(0,0,0,.95);border:1px solid #1e293b;padding:10px;border-radius:12px;z-index:1000;font-size:11px}
 #panel .header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
 #panel .header span{font-weight:600;color:#cbd5e1}
 #panel .closeBtn{background:transparent;border:none;color:#94a3b8;font-size:18px;cursor:pointer;padding:0 5px;line-height:1}
 #panel .row{display:flex;gap:6px;margin-bottom:8px}
-#panel .brush{flex:1;padding:12px 4px;border-radius:8px;color:#fff;border:2px solid #1e293b;font-size:11px;cursor:pointer;font-weight:600;text-align:center}
+#panel .brush{flex:1;padding:12px 4px;border-radius:8px;color:#fff;border:2px solid #1e293b;font-size:11px;cursor:pointer;font-weight:600;text-align:center;background:#0f172a}
 #panel .brush.active{border-color:#facc15}
 #panel .brush.b-red{background:#dc2626}
 #panel .brush.b-blue{background:#2563eb}
 #panel .section{border-top:1px solid #1e293b;margin-top:8px;padding-top:8px}
-#panel .sectionTitle{color:#94a3b8;font-size:10px;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px;font-weight:600}
+#panel .sectionTitle{color:#94a3b8;font-size:10px;margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px;font-weight:600}
 #panel .mapBtn{display:block;width:100%;padding:8px;margin-bottom:4px;background:#0f172a;color:#e2e8f0;border:1px solid #1e293b;border-radius:6px;font-size:11px;cursor:pointer;text-align:left;font-weight:600}
 #panel .mapBtn.active{background:#1e293b;border-color:#facc15;color:#fff}
 #panel button.act{width:100%;padding:10px;margin-top:5px;background:#1e293b;color:#fff;border:none;border-radius:6px;font-size:11px;cursor:pointer;font-weight:600}
 #panel button.act.active{background:#facc15;color:#111}
 #panel button.danger{background:#7f1d1d}
-#panel .hintTxt{color:#94a3b8;text-align:center;margin-top:6px;font-size:10px;line-height:1.4}
+#panel .hintTxt{color:#94a3b8;text-align:center;margin-top:6px;font-size:10px}
 
 #openBtn{position:absolute;bottom:10px;left:8px;width:44px;height:44px;background:rgba(0,0,0,.95);border:1px solid #1e293b;border-radius:50%;color:#e2e8f0;font-size:20px;cursor:pointer;z-index:1000;display:flex;align-items:center;justify-content:center}
 
@@ -55,15 +58,15 @@ body{background:#000;color:#e2e8f0;overflow:hidden;height:100vh}
 #turnPanel .red{color:#f87171}
 #turnPanel button{background:#1e293b;color:#fff;border:none;padding:8px 14px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer}
 #turnPanel button:active{background:#334155}
-#turnPanel button:disabled{opacity:.4;cursor:not-allowed}
+#turnPanel button:disabled{opacity:.4}
 
 #hint{position:absolute;top:70px;left:50%;transform:translateX(-50%);background:rgba(250,204,21,.95);color:#111;padding:8px 14px;border-radius:8px;font-size:12px;font-weight:600;z-index:2000;max-width:80vw;text-align:center;display:none}
 
-#toasts{position:absolute;bottom:120px;left:50%;transform:translateX(-50%);z-index:2500;display:flex;flex-direction:column;gap:6px;align-items:center;max-width:90vw;pointer-events:none}
-.toast{padding:10px 16px;border-radius:10px;font-size:13px;font-weight:700;box-shadow:0 4px 20px rgba(0,0,0,0.5);max-width:90vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.toast.red{background:rgba(220,38,38,0.95);color:#fff;border:2px solid #fca5a5}
-.toast.blue{background:rgba(37,99,235,0.95);color:#fff;border:2px solid #93c5fd}
-.toast.gray{background:rgba(250,204,21,0.95);color:#111}
+#toasts{position:absolute;bottom:120px;left:50%;transform:translateX(-50%);z-index:2500;display:flex;flex-direction:column;gap:6px;align-items:center;pointer-events:none;max-width:90vw}
+.toast{padding:10px 16px;border-radius:10px;font-size:13px;font-weight:700;max-width:90vw;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.toast.red{background:rgba(220,38,38,.95);color:#fff;border:2px solid #fca5a5}
+.toast.blue{background:rgba(37,99,235,.95);color:#fff;border:2px solid #93c5fd}
+.toast.gray{background:rgba(250,204,21,.95);color:#111}
 </style>
 </head>
 <body>
@@ -77,9 +80,18 @@ body{background:#000;color:#e2e8f0;overflow:hidden;height:100vh}
   <div class="status" id="loadStatus">Загрузка карты...</div>
 </div>
 
-<div id="sideSelect">
+<div id="modeSelect">
   <div class="title">⚔️ War Sandbox Ukraine</div>
-  <div class="sub">Выбери сторону</div>
+  <div class="sub">Выбери режим</div>
+  <div class="sideRow">
+    <button class="modeBtn" data-mode="war">⚔️ Война<br><span style="font-size:11px;opacity:.7">Против ИИ</span></button>
+    <button class="modeBtn" data-mode="sandbox">🧪 Песочница<br><span style="font-size:11px;opacity:.7">Свободно</span></button>
+  </div>
+</div>
+
+<div id="sideSelect">
+  <div class="title">⚔️ Выбери сторону</div>
+  <div class="sub">За кого играешь</div>
   <div class="sideRow">
     <button class="sideBtn" data-side="UKR">🇺🇦<br>Украина</button>
     <button class="sideBtn" data-side="RUS">🇷🇺<br>Россия</button>
@@ -104,7 +116,8 @@ body{background:#000;color:#e2e8f0;overflow:hidden;height:100vh}
     <button class="closeBtn" id="closeBtn">✕</button>
   </div>
   <div class="row">
-    <button class="brush b-red active" id="brushBtn"></button>
+    <button class="brush b-blue active" id="brushBlue">🔵 Синий</button>
+    <button class="brush b-red" id="brushRed">🔴 Красный</button>
   </div>
   <div class="section">
     <div class="sectionTitle">🗺 Карта</div>
@@ -115,7 +128,6 @@ body{background:#000;color:#e2e8f0;overflow:hidden;height:100vh}
   </div>
   <button class="act" id="drawBtn">✏️ Включить кисть</button>
   <button class="act danger" id="undoBtn">↩ Убрать последний</button>
-  <button class="act danger" id="clearBtn">🗑 Убрать всё</button>
   <div class="hintTxt" id="hintTxt">Твой ход</div>
 </div>
 
@@ -127,23 +139,24 @@ body{background:#000;color:#e2e8f0;overflow:hidden;height:100vh}
 <script>
 (function(){
   'use strict';
+var map;
+var gameMode = null;
+var mySide = null;
+var playerColor = '#2563eb';
+var aiColor = '#dc2626';
+var currentColor = '#2563eb';
+var aiSpeed = 2;
+var turn = 'player';
+var drawMode = false;
+var currentPoints = [];
+var currentPreview = null;
+var startMarker = null;
+var STORAGE_KEY = 'war_sandbox_v100';
+var UKR = null, RUS = null;
+var AI_RADIUS_KM = 12;
 
-  var map;
-  var mySide = null;
-  var playerColor = '#2563eb';
-  var aiColor = '#dc2626';
-  var currentColor = '#2563eb';
-  var aiSpeed = 2;
-  var turn = 'player';
-  var AI_RADIUS_KM = 12;
-  var drawMode = false;
-  var currentPoints = [];
-  var currentPreview = null;
-  var startMarker = null;
-  var STORAGE_KEY = 'war_sandbox_v60';
-  var UKR = null, RUS = null;
-
-  var CITIES = [  // ОБЛАСТНЫЕ ЦЕНТРЫ УКРАИНЫ
+var CITIES = [
+  // ОБЛАСТНЫЕ ЦЕНТРЫ
   { name: "Киев", lat: 50.4501, lon: 30.5234 },
   { name: "Харьков", lat: 49.9935, lon: 36.2304 },
   { name: "Одесса", lat: 46.4825, lon: 30.7233 },
@@ -270,7 +283,6 @@ body{background:#000;color:#e2e8f0;overflow:hidden;height:100vh}
   { name: "Бондарное", lat: 48.8058, lon: 37.9839 },
   { name: "Дружковка", lat: 48.6214, lon: 37.5278 },
   { name: "Константиновка", lat: 48.5306, lon: 37.7069 },
-  { name: "Александровка", lat: 48.7000, lon: 36.9167 },
   { name: "Белокузьминовка", lat: 48.6472, lon: 37.6853 },
   { name: "Ясногорка", lat: 48.7758, lon: 37.5619 },
   { name: "Красноторка", lat: 48.6858, lon: 37.5317 },
@@ -425,7 +437,6 @@ body{background:#000;color:#e2e8f0;overflow:hidden;height:100vh}
   { name: "Зеленополье", lat: 47.9222, lon: 39.4694 },
   { name: "Грибуваха", lat: 48.3708, lon: 39.2650 },
   { name: "Кременная", lat: 49.0486, lon: 38.2181 },
-
   // ХАРЬКОВСКАЯ ОБЛАСТЬ
   { name: "Мерефа", lat: 49.8183, lon: 36.0592 },
   { name: "Люботин", lat: 49.9472, lon: 35.9281 },
@@ -562,11 +573,9 @@ body{background:#000;color:#e2e8f0;overflow:hidden;height:100vh}
   { name: "Ракитное", lat: 50.7917, lon: 35.1389 },
   { name: "Рубановка", lat: 51.1500, lon: 33.8667 },
   { name: "Весёлое", lat: 51.1722, lon: 33.9889 },
-  { name: "Александровка", lat: 50.4833, lon: 35.5333 },
   { name: "Очкино", lat: 52.2289, lon: 33.3764 },
   { name: "Голубовка", lat: 52.0167, lon: 33.8500 },
   { name: "Оболонь", lat: 50.7833, lon: 35.1833 },
-  { name: "Червонное", lat: 50.8333, lon: 34.7833 },
   { name: "Гамалеевка", lat: 51.8528, lon: 33.5681 },
   { name: "Алтыновка", lat: 51.4406, lon: 33.1817 },
   { name: "Литвиновичи", lat: 51.4244, lon: 33.6331 },
@@ -587,12 +596,9 @@ body{background:#000;color:#e2e8f0;overflow:hidden;height:100vh}
   { name: "Погребки", lat: 51.8833, lon: 33.4000 },
   { name: "Крещатик", lat: 51.4028, lon: 33.6028 },
   { name: "Мутин", lat: 51.3986, lon: 33.5019 },
-  { name: "Некрасово", lat: 51.7000, lon: 33.8000 },
   { name: "Спасское", lat: 51.5278, lon: 33.2083 },
   { name: "Лоташевка", lat: 51.5083, lon: 33.6250 },
   { name: "Кривоносовка", lat: 52.1278, lon: 33.6708 },
-
-  // СУМСКОЙ РАЙОН
   { name: "Верхняя Пожня", lat: 50.5367, lon: 35.2503 },
   { name: "Нижняя Пожня", lat: 50.5181, lon: 35.2417 },
   { name: "Пожня", lat: 50.5283, lon: 35.2547 },
@@ -735,8 +741,11 @@ body{background:#000;color:#e2e8f0;overflow:hidden;height:100vh}
   { name: "Тетиев", lat: 49.3719, lon: 29.6886 },
   { name: "Полесское", lat: 51.2483, lon: 29.3967 },
   { name: "Барышевка", lat: 50.3622, lon: 31.3161 },
+  { name: "Зазимье", lat: 50.5694, lon: 30.6861 },
+  { name: "Летки", lat: 50.7303, lon: 30.7339 },
+  { name: "Семиполки", lat: 50.7183, lon: 30.9367 },
 
-  // ЗАПОРОЖСКАЯ + ХЕРСОНСКАЯ
+  // ЗАПОРОЖСКАЯ ОБЛАСТЬ
   { name: "Энергодар", lat: 47.5000, lon: 34.6500 },
   { name: "Токмак", lat: 47.2500, lon: 35.7167 },
   { name: "Пологи", lat: 47.4833, lon: 36.2667 },
@@ -744,6 +753,13 @@ body{background:#000;color:#e2e8f0;overflow:hidden;height:100vh}
   { name: "Васильевка", lat: 47.4361, lon: 35.2761 },
   { name: "Орехов", lat: 47.5686, lon: 35.7847 },
   { name: "Малая Токмачка", lat: 47.5000, lon: 35.9000 },
+  { name: "Приморск", lat: 46.7333, lon: 36.3500 },
+  { name: "Розовка", lat: 47.4000, lon: 36.7167 },
+  { name: "Молочанск", lat: 47.1283, lon: 35.6500 },
+  { name: "Днепрорудное", lat: 47.3833, lon: 34.9833 },
+  { name: "Каменка-Днепровская", lat: 47.4822, lon: 34.4136 },
+
+  // ХЕРСОНСКАЯ ОБЛАСТЬ
   { name: "Новая Каховка", lat: 46.7500, lon: 33.3500 },
   { name: "Каховка", lat: 46.8131, lon: 33.4822 },
   { name: "Геническ", lat: 46.1667, lon: 34.8000 },
@@ -751,57 +767,85 @@ body{background:#000;color:#e2e8f0;overflow:hidden;height:100vh}
   { name: "Скадовск", lat: 46.1167, lon: 32.9167 },
   { name: "Голая Пристань", lat: 46.5086, lon: 32.5222 },
   { name: "Алёшки", lat: 46.6236, lon: 32.7244 },
-  { name: "Новотроицкое", lat: 46.3533, lon: 34.3317 }
-  ];
+  { name: "Новотроицкое", lat: 46.3533, lon: 34.3317 },
+  { name: "Великая Лепетиха", lat: 47.1783, lon: 33.9344 },
+  { name: "Великая Александровка", lat: 47.3200, lon: 33.3036 },
+  { name: "Чаплынка", lat: 46.3639, lon: 33.5408 },
+  { name: "Новоалексеевка", lat: 46.4322, lon: 33.8517 },
+  { name: "Нижние Серогозы", lat: 46.8461, lon: 34.4217 }
+];
   var cityOwners = {};
   var strokes = [];
-  var hiddenStrokes = [];
   var fillLayers = [];
   var baseLayer = null;
   var cityMarkers = [];
 
-  function init(){
-    map = L.map('map', {zoomControl:true, attributionControl:false}).setView([50, 34], 6);
+  // ===== ИНИЦИАЛИЗАЦИЯ =====
+  function init() {
+    map = L.map('map', { zoomControl: true, attributionControl: false }).setView([50, 34], 6);
     setMapLayer('voyager');
 
-    document.querySelectorAll('.mapBtn').forEach(function(btn){
-      btn.addEventListener('click', function(){
-        document.querySelectorAll('.mapBtn').forEach(function(x){ x.classList.remove('active'); });
+    document.querySelectorAll('.mapBtn').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        document.querySelectorAll('.mapBtn').forEach(function(x) { x.classList.remove('active'); });
         btn.classList.add('active');
         setMapLayer(btn.getAttribute('data-map'));
       });
     });
 
+    document.querySelectorAll('.modeBtn').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        gameMode = btn.getAttribute('data-mode');
+        document.getElementById('modeSelect').style.display = 'none';
+        if (gameMode === 'war') {
+          document.getElementById('sideSelect').style.display = 'flex';
+        } else {
+          startSandbox();
+        }
+      });
+    });
+
+    document.querySelectorAll('.sideBtn').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        aiSpeed = parseInt(document.getElementById('aiSpeed').value) || 2;
+        startWar(btn.getAttribute('data-side'));
+      });
+    });
+
+    document.getElementById('aiSpeed').addEventListener('input', function() {
+      document.getElementById('aiSpeedLabel').textContent = this.value;
+    });
+
+    document.getElementById('brushBlue').addEventListener('click', function() {
+      if (gameMode === 'war' && playerColor !== '#2563eb') return;
+      currentColor = '#2563eb';
+      this.classList.add('active');
+      document.getElementById('brushRed').classList.remove('active');
+    });
+    document.getElementById('brushRed').addEventListener('click', function() {
+      if (gameMode === 'war' && playerColor !== '#dc2626') return;
+      currentColor = '#dc2626';
+      this.classList.add('active');
+      document.getElementById('brushBlue').classList.remove('active');
+    });
+
     document.getElementById('drawBtn').addEventListener('click', toggleDraw);
     document.getElementById('undoBtn').addEventListener('click', undoLast);
-    document.getElementById('clearBtn').addEventListener('click', function(){
-      strokes = []; redrawAll(); saveAll();
-    });
-    document.getElementById('closeBtn').addEventListener('click', function(){
+    document.getElementById('closeBtn').addEventListener('click', function() {
       document.getElementById('panel').classList.add('hidden');
       document.getElementById('openBtn').classList.remove('hidden');
     });
-    document.getElementById('openBtn').addEventListener('click', function(){
+    document.getElementById('openBtn').addEventListener('click', function() {
       document.getElementById('panel').classList.remove('hidden');
       document.getElementById('openBtn').classList.add('hidden');
     });
     document.getElementById('endTurnBtn').addEventListener('click', endTurn);
-    document.getElementById('aiSpeed').addEventListener('input', function(){
-      aiSpeed = parseInt(this.value);
-      document.getElementById('aiSpeedLabel').textContent = aiSpeed;
-    });
-
-    document.querySelectorAll('.sideBtn').forEach(function(btn){
-      btn.addEventListener('click', function(){
-        startGame(btn.getAttribute('data-side'));
-      });
-    });
 
     var container = map.getContainer();
-    container.addEventListener('touchstart', handleStart, {passive:false});
-    container.addEventListener('touchmove', handleMove, {passive:false});
-    container.addEventListener('touchend', handleEnd, {passive:false});
-    container.addEventListener('touchcancel', handleEnd, {passive:false});
+    container.addEventListener('touchstart', handleStart, { passive: false });
+    container.addEventListener('touchmove', handleMove, { passive: false });
+    container.addEventListener('touchend', handleEnd, { passive: false });
+    container.addEventListener('touchcancel', handleEnd, { passive: false });
     container.addEventListener('mousedown', handleStart);
     container.addEventListener('mousemove', handleMove);
     container.addEventListener('mouseup', handleEnd);
@@ -827,29 +871,33 @@ body{background:#000;color:#e2e8f0;overflow:hidden;height:100vh}
       opts.maxZoom = 20; opts.subdomains = 'abcd';
     }
     baseLayer = L.tileLayer(url, opts).addTo(map);
-    fillLayers.forEach(function(l){ if (map.hasLayer(l)) l.bringToFront(); });
-    cityMarkers.forEach(function(m){ if (map.hasLayer(m)) m.bringToFront(); });
+    fillLayers.forEach(function(l) { if (map.hasLayer(l)) l.bringToFront(); });
+    cityMarkers.forEach(function(m) { if (map.hasLayer(m)) m.bringToFront(); });
   }
 
   function saveAll() {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify({
-        mySide: mySide, strokes: strokes, hiddenStrokes: hiddenStrokes, aiSpeed: aiSpeed
+        mySide: mySide, gameMode: gameMode, playerColor: playerColor,
+        aiColor: aiColor, aiSpeed: aiSpeed, strokes: strokes,
+        cityOwners: cityOwners
       }));
-    } catch(e){}
+    } catch(e) {}
   }
+
   function loadAll() {
     try {
       var raw = localStorage.getItem(STORAGE_KEY);
       if (!raw) return false;
       var d = JSON.parse(raw);
       if (!d || !d.mySide) return false;
-      mySide = d.mySide;
-      strokes = d.strokes || [];
-      hiddenStrokes = d.hiddenStrokes || [];
+      mySide = d.mySide; gameMode = d.gameMode;
+      playerColor = d.playerColor; aiColor = d.aiColor;
       aiSpeed = d.aiSpeed || 2;
+      strokes = d.strokes || [];
+      cityOwners = d.cityOwners || {};
       return true;
-    } catch(e){ return false; }
+    } catch(e) { return false; }
   }
 
   function setStatus(t) {
@@ -857,16 +905,16 @@ body{background:#000;color:#e2e8f0;overflow:hidden;height:100vh}
     if (el) el.textContent = t;
   }
 
-  function loadData(){
+  function loadData() {
     setStatus('Скачиваем границы (10m, ~30 сек)...');
     fetch('https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_10m_admin_0_countries.geojson')
-      .then(function(r){ return r.json(); })
-      .then(function(data){
-        var ukr = data.features.find(function(f){
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        var ukr = data.features.find(function(f) {
           var c = f.properties.ADM0_A3 || f.properties.adm0_a3 || '';
           return c === 'UKR';
         });
-        var rus_full = data.features.find(function(f){
+        var rus_full = data.features.find(function(f) {
           var c = f.properties.ADM0_A3 || f.properties.adm0_a3 || '';
           return c === 'RUS';
         });
@@ -875,78 +923,115 @@ body{background:#000;color:#e2e8f0;overflow:hidden;height:100vh}
         setStatus('Обрезаем Россию по Уралу...');
         var clipBox = turf.bboxPolygon([19, 41, 60, 82]);
         var rus = null;
-        try { rus = turf.intersect(rus_full, clipBox); } catch(e){ rus = rus_full; }
+        try { rus = turf.intersect(rus_full, clipBox); } catch(e) { rus = rus_full; }
         if (!rus) rus = rus_full;
 
         UKR = ukr;
         RUS = rus;
 
         var unionAll = null;
-        try { unionAll = turf.union(UKR, RUS); } catch(e){ unionAll = UKR; }
-        L.geoJSON(unionAll, {style:{color:'#000000',weight:2.5,fillOpacity:0,opacity:0.85}, interactive:false}).addTo(map);
+        try { unionAll = turf.union(UKR, RUS); } catch(e) { unionAll = UKR; }
+        L.geoJSON(unionAll, { style: { color: '#000', weight: 2.5, fillOpacity: 0, opacity: 0.85 }, interactive: false }).addTo(map);
 
-        try { map.fitBounds(L.geoJSON(UKR).getBounds(), {padding:[20,20]}); } catch(e){}
+        try { map.fitBounds(L.geoJSON(UKR).getBounds(), { padding: [20, 20] }); } catch(e) {}
         drawCities();
 
         document.getElementById('load').style.display = 'none';
-
         if (loadAll() && mySide) {
-          startGame(mySide, true);
+          if (gameMode === 'war') startWar(mySide, true);
+          else startSandbox(true);
         } else {
-          document.getElementById('sideSelect').style.display = 'flex';
+          document.getElementById('modeSelect').style.display = 'flex';
         }
-      }).catch(function(e){ setStatus('Ошибка: ' + e.message); });
+      })
+      .catch(function(e) { setStatus('Ошибка: ' + e.message); });
   }
 
-  function startGame(side, restored){
+  function drawCities() {
+    CITIES.forEach(function(c) {
+      var marker = L.circleMarker([c.lat, c.lon], {
+        radius: 2.5, color: '#fff', weight: 1,
+        fillColor: '#000', fillOpacity: 0.6, interactive: false
+      }).addTo(map);
+      cityMarkers.push(marker);
+    });
+  }
+
+  // ===== РЕЖИМЫ =====
+  function startWar(side, restored) {
+    gameMode = 'war';
     mySide = side;
     playerColor = (side === 'UKR') ? '#2563eb' : '#dc2626';
     aiColor = (side === 'UKR') ? '#dc2626' : '#2563eb';
     currentColor = playerColor;
 
-    // Скрытые слои только если их нет
-    if (!hiddenStrokes.length) {
-      var enemySide = (side === 'UKR') ? 'RUS' : 'UKR';
-      var enemyFeature = (enemySide === 'UKR') ? UKR : RUS;
-      var myFeature = (side === 'UKR') ? UKR : RUS;
-      hiddenStrokes.push({ feature: enemyFeature, color: aiColor, hidden: true });
-      hiddenStrokes.push({ feature: myFeature, color: playerColor, hidden: true });
-      // Изначально все НП принадлежат своей стороне
-      CITIES.forEach(function(c){
+    if (!restored || !strokes.length) {
+      strokes = [
+        { feature: UKR, color: '#2563eb' },
+        { feature: RUS, color: '#dc2626' }
+      ];
+      cityOwners = {};
+      CITIES.forEach(function(c) {
         var pt = turf.point([c.lon, c.lat]);
         try {
-          if (turf.booleanPointInPolygon(pt, myFeature)) cityOwners[c.name] = playerColor;
-          else if (turf.booleanPointInPolygon(pt, enemyFeature)) cityOwners[c.name] = aiColor;
-        } catch(e){}
+          if (turf.booleanPointInPolygon(pt, UKR)) cityOwners[c.name] = '#2563eb';
+          else if (turf.booleanPointInPolygon(pt, RUS)) cityOwners[c.name] = '#dc2626';
+        } catch(e) {}
       });
     }
 
-    // Красим кнопку кисти
-    var brushBtn = document.getElementById('brushBtn');
-    brushBtn.className = 'brush active ' + (playerColor === '#2563eb' ? 'b-blue' : 'b-red');
-    brushBtn.textContent = (playerColor === '#2563eb' ? '🔵 Синий' : '🔴 Красный');
+    if (playerColor === '#2563eb') {
+      document.getElementById('brushBlue').classList.add('active');
+      document.getElementById('brushRed').classList.remove('active');
+    } else {
+      document.getElementById('brushRed').classList.add('active');
+      document.getElementById('brushBlue').classList.remove('active');
+    }
 
+    document.getElementById('modeSelect').style.display = 'none';
     document.getElementById('sideSelect').style.display = 'none';
     document.getElementById('panel').classList.remove('hidden');
     document.getElementById('turnPanel').classList.remove('hidden');
-    document.getElementById('aiSpeed').value = aiSpeed;
-    document.getElementById('aiSpeedLabel').textContent = aiSpeed;
-
     turn = 'player';
     updateTurnUI();
     redrawAll();
-
-    if (!restored) showToast('🎮 Игра началась', playerColor);
+    saveAll();
+    if (!restored) showToast('⚔️ Война началась', playerColor);
   }
 
-  function drawCities() {
-    CITIES.forEach(function(c){
-      var marker = L.circleMarker([c.lat, c.lon], {
-        radius: 2.5, color: '#ffffff', weight: 1,
-        fillColor: '#000000', fillOpacity: 0.6, interactive: false
-      }).addTo(map);
-      cityMarkers.push(marker);
-    });
+  function startSandbox(restored) {
+    gameMode = 'sandbox';
+    mySide = 'sandbox';
+    playerColor = '#2563eb';
+    aiColor = '#dc2626';
+    currentColor = '#2563eb';
+
+    if (!restored || !strokes.length) {
+      strokes = [
+        { feature: UKR, color: '#2563eb' },
+        { feature: RUS, color: '#dc2626' }
+      ];
+      cityOwners = {};
+      CITIES.forEach(function(c) {
+        var pt = turf.point([c.lon, c.lat]);
+        try {
+          if (turf.booleanPointInPolygon(pt, UKR)) cityOwners[c.name] = '#2563eb';
+          else if (turf.booleanPointInPolygon(pt, RUS)) cityOwners[c.name] = '#dc2626';
+        } catch(e) {}
+      });
+    }
+
+    document.getElementById('brushBlue').classList.add('active');
+    document.getElementById('brushRed').classList.remove('active');
+
+    document.getElementById('modeSelect').style.display = 'none';
+    document.getElementById('sideSelect').style.display = 'none';
+    document.getElementById('panel').classList.remove('hidden');
+    document.getElementById('turnPanel').classList.add('hidden');
+
+    redrawAll();
+    saveAll();
+    if (!restored) showToast('🧪 Песочница', playerColor);
   }
 
   function updateTurnUI() {
@@ -961,139 +1046,9 @@ body{background:#000;color:#e2e8f0;overflow:hidden;height:100vh}
     }
   }
 
-  function endTurn() {
-    if (turn !== 'player') return;
-    turn = 'ai';
-    updateTurnUI();
-    setTimeout(aiTurn, 800);
-  }
-
-  function aiTurn() {
-    // Находим все НП игрока (это наши цели)
-    var targets = CITIES.filter(function(c){ return cityOwners[c.name] === playerColor; });
-    if (!targets.length) {
-      turn = 'player'; updateTurnUI();
-      return;
-    }
-
-    // Находим все свои НП
-    var myCities = CITIES.filter(function(c){ return cityOwners[c.name] === aiColor; });
-
-    // Сортируем цели по близости к своим
-    targets.forEach(function(t){
-      var minD = 9999;
-      myCities.forEach(function(m){
-        var d = Math.sqrt(Math.pow(t.lat - m.lat, 2) + Math.pow(t.lon - m.lon, 2));
-        if (d < minD) minD = d;
-      });
-      t._dist = minD;
-    });
-    targets.sort(function(a,b){ return a._dist - b._dist; });
-
-    // Ограничение: радиус 12 км + max N атак
-    var attacks = Math.min(aiSpeed, targets.length);
-    var captured = 0;
-    var capturedNames = [];
-
-    for (var i = 0; i < attacks; i++) {
-      var t = targets[i];
-      var circle = turf.circle([t.lon, t.lat], AI_RADIUS_KM, {units:'kilometers'});
-      var changed = applyAiAttack(circle, aiColor);
-      if (changed) {
-        captured++;
-        capturedNames.push(t.name);
-      }
-    }
-
-    showToast('🤖 ИИ атаковал ' + captured + ' НП', aiColor);
-    redrawAll();
-    saveAll();
-
-    setTimeout(function(){
-      turn = 'player';
-      updateTurnUI();
-    }, 700);
-  }
-
-  function applyAiAttack(shape, color) {
-    var enemyColor = (color === '#dc2626') ? '#2563eb' : '#dc2626';
-
-    // Разбиваем по странам
-    var partUkr = null, partRus = null;
-    try { partUkr = turf.intersect(shape, UKR); } catch(e){}
-    try { partRus = turf.intersect(shape, RUS); } catch(e){}
-
-    var parts = [];
-    var isUkrSide = (color === '#2563eb');
-
-    // Собираем врага (включая скрытые)
-    var allEnemy = strokes.concat(hiddenStrokes).filter(function(s){ return s.color === enemyColor; });
-
-    if (isUkrSide) {
-      if (partUkr) parts.push(partUkr);
-      if (partRus) {
-        allEnemy.forEach(function(s){
-          try {
-            var inter = turf.intersect(partRus, s.feature);
-            if (inter) parts.push(inter);
-          } catch(e){}
-        });
-      }
-    } else {
-      if (partRus) parts.push(partRus);
-      if (partUkr) {
-        allEnemy.forEach(function(s){
-          try {
-            var inter = turf.intersect(partUkr, s.feature);
-            if (inter) parts.push(inter);
-          } catch(e){}
-        });
-      }
-    }
-
-    if (!parts.length) return false;
-
-    var finalShape = parts[0];
-    for (var i = 1; i < parts.length; i++) {
-      try { finalShape = turf.union(finalShape, parts[i]); } catch(e){}
-    }
-
-    // Отмечаем НП
-    CITIES.forEach(function(c){
-      var pt = turf.point([c.lon, c.lat]);
-      try {
-        if (turf.booleanPointInPolygon(pt, finalShape)) cityOwners[c.name] = color;
-      } catch(e){}
-    });
-
-    // Вытесняем врага
-    var newStrokes = [];
-    strokes.forEach(function(s){
-      if (s.color !== enemyColor) { newStrokes.push(s); return; }
-      try {
-        var diff = turf.difference(s.feature, finalShape);
-        if (diff) newStrokes.push({ feature: diff, color: s.color });
-      } catch(e){ newStrokes.push(s); }
-    });
-    strokes = newStrokes;
-
-    // И из скрытых
-    var newHidden = [];
-    hiddenStrokes.forEach(function(s){
-      if (s.color !== enemyColor) { newHidden.push(s); return; }
-      try {
-        var diff = turf.difference(s.feature, finalShape);
-        if (diff) newHidden.push({ feature: diff, color: s.color, hidden: true });
-      } catch(e){ newHidden.push(s); }
-    });
-    hiddenStrokes = newHidden;
-
-    strokes.push({ feature: finalShape, color: color });
-    return true;
-  }
-
-  function toggleDraw(){
-    if (turn !== 'player') { showHint('Сейчас ход ИИ'); return; }
+  // ===== РИСОВАНИЕ =====
+  function toggleDraw() {
+    if (gameMode === 'war' && turn !== 'player') { showHint('Сейчас ход ИИ'); return; }
     drawMode = !drawMode;
     var btn = document.getElementById('drawBtn');
     if (drawMode) {
@@ -1119,7 +1074,7 @@ body{background:#000;color:#e2e8f0;overflow:hidden;height:100vh}
     return map.mouseEventToLatLng(t);
   }
 
-  function handleStart(e){
+  function handleStart(e) {
     if (!drawMode) return;
     if (e.touches && e.touches.length > 1) return;
     if (e.button !== undefined && e.button !== 0) return;
@@ -1130,7 +1085,7 @@ body{background:#000;color:#e2e8f0;overflow:hidden;height:100vh}
       icon: L.divIcon({
         className: '',
         html: '<div style="font-size:24px;line-height:1;filter:drop-shadow(0 2px 4px #000)">✏️</div>',
-        iconSize: [24,24], iconAnchor: [12,12]
+        iconSize: [24, 24], iconAnchor: [12, 12]
       }),
       interactive: false
     }).addTo(map);
@@ -1140,7 +1095,7 @@ body{background:#000;color:#e2e8f0;overflow:hidden;height:100vh}
     }).addTo(map);
   }
 
-  function handleMove(e){
+  function handleMove(e) {
     if (!drawMode || !currentPreview) return;
     e.preventDefault();
     var ll = getLatLng(e);
@@ -1148,51 +1103,261 @@ body{background:#000;color:#e2e8f0;overflow:hidden;height:100vh}
     currentPreview.setLatLngs(currentPoints);
   }
 
-  function handleEnd(e){
+  function handleEnd(e) {
     if (!drawMode || !currentPreview) return;
     e.preventDefault();
     var pts = currentPoints.slice();
     cancelStroke();
     if (pts.length < 3) { showHint('Слишком коротко'); return; }
-    var arr = pts.map(function(ll){ return [ll.lat, ll.lng]; });
+    var arr = pts.map(function(ll) { return [ll.lat, ll.lng]; });
     addStroke(arr, currentColor);
   }
 
   function intersectWithColor(feature, targetColor) {
     var parts = [];
-    strokes.concat(hiddenStrokes).forEach(function(s){
+    strokes.forEach(function(s) {
       if (s.color !== targetColor) return;
       try {
         var inter = turf.intersect(feature, s.feature);
         if (inter) parts.push(inter);
-      } catch(e){}
+      } catch(e) {}
     });
     if (!parts.length) return null;
     var merged = parts[0];
     for (var i = 1; i < parts.length; i++) {
-      try { merged = turf.union(merged, parts[i]); } catch(e){}
+      try { merged = turf.union(merged, parts[i]); } catch(e) {}
     }
     return merged;
   }
 
   function addStroke(pts, color) {
     if (!UKR || !RUS) return;
-    var coords = pts.map(function(p){ return [p[1], p[0]]; });
-    var first = coords[0], last = coords[coords.length-1];
+    var coords = pts.map(function(p) { return [p[1], p[0]]; });
+    var first = coords[0], last = coords[coords.length - 1];
     if (first[0] !== last[0] || first[1] !== last[1]) coords.push([first[0], first[1]]);
     var drawn = { type: 'Feature', geometry: { type: 'Polygon', coordinates: [coords] }, properties: {} };
 
     var unionAll = null;
-    try { unionAll = turf.union(UKR, RUS); } catch(e){ unionAll = UKR; }
+    try { unionAll = turf.union(UKR, RUS); } catch(e) { unionAll = UKR; }
     var clipped = null;
-    try { clipped = turf.intersect(drawn, unionAll); } catch(e){}
+    try { clipped = turf.intersect(drawn, unionAll); } catch(e) {}
     if (!clipped) { showHint('За пределами'); return; }
 
     var partUkr = null, partRus = null;
-    try { partUkr = turf.intersect(clipped, UKR); } catch(e){}
-    try { partRus = turf.intersect(clipped, RUS); } catch(e){}
+    try { partUkr = turf.intersect(clipped, UKR); } catch(e) {}
+    try { partRus = turf.intersect(clipped, RUS); } catch(e) {}
 
     var enemyColor = (color === '#dc2626') ? '#2563eb' : '#dc2626';
+    var parts = [];
+    var isUkrSide = (color === '#2563eb');
+
+    // РИСОВАНИЕ ТОЛЬКО ПО ВРАГУ
+    if (isUkrSide) {
+      if (partRus) {
+        var t = intersectWithColor(partRus, enemyColor);
+        if (t) parts.push(t);
+      }
+    } else {
+      if (partUkr) {
+        var t2 = intersectWithColor(partUkr, enemyColor);
+        if (t2) parts.push(t2);
+      }
+    }
+
+    // В песочнице — свободно
+    if (gameMode === 'sandbox') {
+      parts = [];
+      if (partUkr) parts.push(partUkr);
+      if (partRus) parts.push(partRus);
+    }
+
+    if (!parts.length) {
+      showHint('❌ Рисуй только по территории врага');
+      return;
+    }
+
+    var finalShape = parts[0];
+    for (var i = 1; i < parts.length; i++) {
+      try { finalShape = turf.union(finalShape, parts[i]); } catch(e) {}
+    }
+
+    var captured = [];
+    CITIES.forEach(function(c) {
+      var pt = turf.point([c.lon, c.lat]);
+      try {
+        if (turf.booleanPointInPolygon(pt, finalShape)) {
+          if (cityOwners[c.name] !== color) {
+            captured.push(c.name);
+            cityOwners[c.name] = color;
+          }
+        }
+      } catch(e) {}
+    });
+
+    var newStrokes = [];
+    strokes.forEach(function(s) {
+      if (s.color !== enemyColor) { newStrokes.push(s); return; }
+      try {
+        var diff = turf.difference(s.feature, finalShape);
+        if (diff) newStrokes.push({ feature: diff, color: s.color });
+      } catch(e) { newStrokes.push(s); }
+    });
+    strokes = newStrokes;
+    strokes.push({ feature: finalShape, color: color });
+
+    var sideName = color === '#dc2626' ? 'ВС РФ' : 'ВСУ';
+    if (captured.length) {
+      if (captured.length <= 3) {
+        captured.forEach(function(n) { showToast('📍 ' + n + ' → ' + sideName, color); });
+      } else {
+        showToast('📍 ' + captured.length + ' НП → ' + sideName, color);
+      }
+    }
+
+    redrawAll();
+    saveAll();
+  }
+
+  function showToast(text, color) {
+    var cont = document.getElementById('toasts');
+    var el = document.createElement('div');
+    el.className = 'toast ' + (color === '#dc2626' ? 'red' : 'blue');
+    el.textContent = text;
+    cont.appendChild(el);
+    setTimeout(function() { el.remove(); }, 3500);
+    if (cont.children.length > 5) cont.removeChild(cont.firstChild);
+  }
+
+  function redrawAll() {
+    fillLayers.forEach(function(l) { map.removeLayer(l); });
+    fillLayers = [];
+    if (!strokes.length) return;
+    var byColor = {};
+    strokes.forEach(function(s) {
+      if (!byColor[s.color]) byColor[s.color] = [];
+      byColor[s.color].push(s.feature);
+    });
+    Object.keys(byColor).forEach(function(color) {
+      var list = byColor[color];
+      if (!list.length) return;
+      var merged = list[0];
+      for (var i = 1; i < list.length; i++) {
+        try { merged = turf.union(merged, list[i]); } catch(e) {}
+      }
+      var fl = L.geoJSON(merged, {
+        style: { color: '#000', weight: 2.5, opacity: 1, fillColor: color, fillOpacity: 0.75 }
+      }).addTo(map);
+      fillLayers.push(fl);
+    });
+  }
+
+  function undoLast() {
+    if (!strokes.length) { showHint('Нет штрихов'); return; }
+    strokes.pop();
+    redrawAll();
+    saveAll();
+  }
+
+  function showHint(t) {
+    var h = document.getElementById('hint');
+    h.textContent = t;
+    h.style.display = 'block';
+    setTimeout(function() { h.style.display = 'none'; }, 2000);
+  }
+
+  // ===== ИИ =====
+  function endTurn() {
+    if (turn !== 'player') return;
+    turn = 'ai';
+    updateTurnUI();
+    setTimeout(aiTurn, 800);
+  }
+
+  function aiTurn() {
+    // 1. Находим все НП игрока (это цели)
+    var targets = CITIES.filter(function(c) { return cityOwners[c.name] === playerColor; });
+    if (!targets.length) {
+      turn = 'player'; updateTurnUI(); return;
+    }
+
+    // 2. Свои НП
+    var myCities = CITIES.filter(function(c) { return cityOwners[c.name] === aiColor; });
+
+    // 3. Сортируем цели: сначала ближайшие к своим, потом крупные
+    var majorNames = ["Киев","Харьков","Одесса","Днепр","Донецк","Запорожье","Львов","Николаев","Херсон","Полтава","Сумы","Чернигов","Курск","Белгород","Брянск","Воронеж","Ростов-на-Дону"];
+    targets.forEach(function(t) {
+      var minD = 99999;
+      myCities.forEach(function(m) {
+        var d = Math.sqrt(Math.pow(t.lat - m.lat, 2) + Math.pow(t.lon - m.lon, 2));
+        if (d < minD) minD = d;
+      });
+      t._dist = minD;
+      t._major = majorNames.indexOf(t.name) !== -1;
+    });
+    // Сортировка: сначала приграничные (до 45 км), потом крупные
+    targets.sort(function(a, b) {
+      var aFront = a._dist <= 45 ? 1 : 0;
+      var bFront = b._dist <= 45 ? 1 : 0;
+      if (aFront !== bFront) return bFront - aFront;
+      if (a._major !== b._major) return (b._major?1:0) - (a._major?1:0);
+      return a._dist - b._dist;
+    });
+
+    // 4. Фильтр: атакуем только фронтовые (до 60 км) + не тыл
+    var front = targets.filter(function(t) { return t._dist <= 60; });
+    if (!front.length) front = targets.slice(0, 3);
+
+    // 5. Выбираем N = aiSpeed целей с фильтром расстояния между атаками (24 км)
+    var finalTargets = [];
+    for (var i = 0; i < front.length && finalTargets.length < aiSpeed; i++) {
+      var t = front[i];
+      var far = true;
+      for (var k = 0; k < finalTargets.length; k++) {
+        var d = Math.sqrt(
+          Math.pow(t.lat - finalTargets[k].lat, 2) +
+          Math.pow(t.lon - finalTargets[k].lon, 2)
+        ) * 111;
+        if (d < 24) { far = false; break; }
+      }
+      if (far) finalTargets.push(t);
+    }
+
+    if (!finalTargets.length) {
+      showToast('🤖 ИИ не нашёл целей', aiColor);
+      turn = 'player'; updateTurnUI(); return;
+    }
+
+    // 6. Выполняем атаки с задержкой
+    var idx = 0;
+    function attackNext() {
+      if (idx >= finalTargets.length) {
+        showToast('🤖 ИИ атаковал ' + finalTargets.length + ' НП', aiColor);
+        redrawAll();
+        saveAll();
+        setTimeout(function() {
+          turn = 'player';
+          updateTurnUI();
+        }, 500);
+        return;
+      }
+      var t = finalTargets[idx++];
+      try {
+        var circle = turf.circle([t.lon, t.lat], AI_RADIUS_KM, { units: 'kilometers' });
+        applyAiAttack(circle, aiColor);
+        redrawAll();
+      } catch(e) { console.log('AI attack err', e); }
+      setTimeout(attackNext, 350);
+    }
+    attackNext();
+  }
+
+  function applyAiAttack(shape, color) {
+    var enemyColor = (color === '#dc2626') ? '#2563eb' : '#dc2626';
+
+    var partUkr = null, partRus = null;
+        try { partUkr = turf.intersect(shape, UKR); } catch(e) {}
+    try { partRus = turf.intersect(shape, RUS); } catch(e) {}
+
     var parts = [];
     var isUkrSide = (color === '#2563eb');
 
@@ -1210,119 +1375,31 @@ body{background:#000;color:#e2e8f0;overflow:hidden;height:100vh}
       }
     }
 
-    if (!parts.length) {
-      showHint('❌ Здесь нет врага');
-      return;
-    }
+    if (!parts.length) return false;
 
     var finalShape = parts[0];
     for (var i = 1; i < parts.length; i++) {
-      try { finalShape = turf.union(finalShape, parts[i]); } catch(e){}
+      try { finalShape = turf.union(finalShape, parts[i]); } catch(e) {}
     }
 
-    var captured = [];
-    CITIES.forEach(function(c){
+    CITIES.forEach(function(c) {
       var pt = turf.point([c.lon, c.lat]);
       try {
-        if (turf.booleanPointInPolygon(pt, finalShape)) {
-          if (cityOwners[c.name] !== color) {
-            captured.push(c.name);
-            cityOwners[c.name] = color;
-          }
-        }
-      } catch(e){}
+        if (turf.booleanPointInPolygon(pt, finalShape)) cityOwners[c.name] = color;
+      } catch(e) {}
     });
 
     var newStrokes = [];
-    strokes.forEach(function(s){
+    strokes.forEach(function(s) {
       if (s.color !== enemyColor) { newStrokes.push(s); return; }
       try {
         var diff = turf.difference(s.feature, finalShape);
         if (diff) newStrokes.push({ feature: diff, color: s.color });
-      } catch(e){ newStrokes.push(s); }
+      } catch(e) { newStrokes.push(s); }
     });
     strokes = newStrokes;
-
-    var newHidden = [];
-    hiddenStrokes.forEach(function(s){
-      if (s.color !== enemyColor) { newHidden.push(s); return; }
-      try {
-        var diff = turf.difference(s.feature, finalShape);
-        if (diff) newHidden.push({ feature: diff, color: s.color, hidden: true });
-      } catch(e){ newHidden.push(s); }
-    });
-    hiddenStrokes = newHidden;
-
     strokes.push({ feature: finalShape, color: color });
-
-    var sideName = color === '#dc2626' ? 'ВС РФ' : 'ВСУ';
-    if (captured.length) {
-      if (captured.length <= 3) {
-        captured.forEach(function(n){ showToast('📍 ' + n + ' → ' + sideName, color); });
-      } else {
-        showToast('📍 ' + captured.length + ' НП → ' + sideName, color);
-      }
-    }
-
-    redrawAll();
-    saveAll();
-  }
-
-  function showToast(text, color) {
-    var cont = document.getElementById('toasts');
-    var el = document.createElement('div');
-    el.className = 'toast ' + (color === '#dc2626' ? 'red' : 'blue');
-    el.textContent = text;
-    cont.appendChild(el);
-    setTimeout(function(){ el.remove(); }, 3500);
-    if (cont.children.length > 5) cont.removeChild(cont.firstChild);
-  }
-
-  function redrawAll() {
-    fillLayers.forEach(function(l){ map.removeLayer(l); });
-    fillLayers = [];
-
-    var visible = strokes.filter(function(s){ return !s.hidden; });
-    if (!visible.length) return;
-
-    var byColor = {};
-    visible.forEach(function(s){
-      if (!byColor[s.color]) byColor[s.color] = [];
-      byColor[s.color].push(s.feature);
-    });
-
-    Object.keys(byColor).forEach(function(color){
-      var list = byColor[color];
-      if (!list.length) return;
-      var merged = list[0];
-      for (var i = 1; i < list.length; i++) {
-        try { merged = turf.union(merged, list[i]); } catch(e){}
-      }
-      var fl = L.geoJSON(merged, {
-        style: {
-          color: '#000000',
-          weight: 2.5,
-          opacity: 1,
-          fillColor: color,
-          fillOpacity: 0.75
-        }
-      }).addTo(map);
-      fillLayers.push(fl);
-    });
-  }
-
-  function undoLast(){
-    if (!strokes.length) { showHint('Нет штрихов'); return; }
-    strokes.pop();
-    redrawAll();
-    saveAll();
-  }
-
-  function showHint(t){
-    var h = document.getElementById('hint');
-    h.textContent = t;
-    h.style.display = 'block';
-    setTimeout(function(){ h.style.display = 'none'; }, 2000);
+    return true;
   }
 
   init();
