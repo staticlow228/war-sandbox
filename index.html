@@ -1,8 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" translate="no">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="google" content="notranslate">
 <title>War Sandbox Ukraine</title>
 <link rel="manifest" href="manifest.json">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
@@ -113,7 +114,7 @@ body{background:#000;color:#e2e8f0;overflow:hidden;height:100vh}
   var currentPoints = [];
   var currentPreview = null;
   var startMarker = null;
-  var LANG_KEY = 'war_sandbox_lang_v4';
+  var LANG_KEY = 'war_sandbox_lang_v6';
 
   var currentLang = 'en';
 
@@ -146,7 +147,7 @@ body{background:#000;color:#e2e8f0;overflow:hidden;height:100vh}
     var lang = TRANSLATIONS[currentLang] || TRANSLATIONS.en;
     return lang[key] || TRANSLATIONS.en[key] || key;
   }
-  // ===== ИНИЦИАЛИЗАЦИЯ =====
+
   function init() {
     map = L.map('map', { zoomControl: true, attributionControl: false }).setView([49, 32], 6);
     setMapLayer('osm');
@@ -234,6 +235,7 @@ body{background:#000;color:#e2e8f0;overflow:hidden;height:100vh}
     document.getElementById('lblUndo').textContent = t('undo');
     document.getElementById('lblReset').textContent = t('reset');
     document.getElementById('hintTxt').textContent = t('hintDraw');
+    document.getElementById('grayVal').textContent = grayZoneKm + ' km';
   }
 
   function setMapLayer(type) {
@@ -271,7 +273,6 @@ body{background:#000;color:#e2e8f0;overflow:hidden;height:100vh}
         });
         if (!ukr || !rus_full) { setStatus('Not found'); return; }
 
-        // Обрезаем РФ по 60 в.д.
         setStatus('Clipping Russia...');
         var clipBox = turf.bboxPolygon([19, 41, 60, 82]);
         var rus = null;
@@ -348,10 +349,16 @@ body{background:#000;color:#e2e8f0;overflow:hidden;height:100vh}
     }).addTo(map);
   }
 
+  var lastMoveTime = 0;
   function handleMove(e) {
     if (!drawMode || !currentPreview) return;
     e.preventDefault();
+    var now = Date.now();
+    if (now - lastMoveTime < 100) return;
+    lastMoveTime = now;
     var ll = getLatLng(e);
+    var last = currentPoints[currentPoints.length - 1];
+    if (last && Math.abs(last.lat - ll.lat) < 0.0005 && Math.abs(last.lng - ll.lng) < 0.0005) return;
     currentPoints.push(ll);
     currentPreview.setLatLngs(currentPoints);
   }
@@ -370,34 +377,29 @@ body{background:#000;color:#e2e8f0;overflow:hidden;height:100vh}
     var coords = pts.map(function(p) { return [p[1], p[0]]; });
     var first = coords[0], last = coords[coords.length - 1];
     if (first[0] !== last[0] || first[1] !== last[1]) coords.push([first[0], first[1]]);
+
     var drawn = { type: 'Feature', geometry: { type: 'Polygon', coordinates: [coords] }, properties: {} };
 
     var unionAll = null;
-    try { unionAll = turf.union(UKR, RUS); } catch(e) { unionAll = UKR; }
+    try {
+      unionAll = turf.union(turf.featureCollection([UKR, RUS]));
+    } catch(e) {
+      console.warn('Union UKR+RUS failed:', e);
+      unionAll = UKR;
+    }
+
     var clipped = null;
-    try { clipped = turf.intersect(drawn, unionAll); } catch(e) {}
+    try {
+      clipped = turf.intersect(drawn, unionAll);
+    } catch(e) {
+      console.warn('Intersect failed:', e);
+    }
     if (!clipped) { showHint('Outside'); return; }
 
-    // Вытеснение противоположного цвета
-    var oppositeColor = (color === COLOR_BLUE) ? COLOR_RED : COLOR_BLUE;
-    var newStrokes = [];
-    strokes.forEach(function(s) {
-      if (s.color !== oppositeColor) {
-        newStrokes.push(s);
-        return;
-      }
-      try {
-        var diff = turf.difference(s.feature, clipped);
-        if (diff) newStrokes.push({ feature: diff, color: s.color, radius: s.radius });
-      } catch(e) { newStrokes.push(s); }
-    });
-    strokes = newStrokes;
     strokes.push({ feature: clipped, color: color, radius: grayZoneKm });
-
     redrawAll();
   }
 
-  // ===== ПЕРЕРИСОВКА — ОБЪЕДИНЕНИЕ ПО ЦВЕТАМ + ОБЪЕДИНЕНИЕ СЕРОЙ ===
   function redrawAll() {
     if (window._layers) {
       window._layers.forEach(function(l) { if (map.hasLayer(l)) map.removeLayer(l); });
@@ -406,7 +408,6 @@ body{background:#000;color:#e2e8f0;overflow:hidden;height:100vh}
 
     if (!strokes.length) return;
 
-    // Группируем по цвету и объединяем
     var byColor = {};
     strokes.forEach(function(s) {
       if (!byColor[s.color]) byColor[s.color] = [];
@@ -418,32 +419,51 @@ body{background:#000;color:#e2e8f0;overflow:hidden;height:100vh}
       var list = byColor[color];
       var merged = list[0];
       for (var i = 1; i < list.length; i++) {
-        try { merged = turf.union(merged, list[i]); } catch(e) {}
+        try {
+          merged = turf.union(turf.featureCollection([merged, list[i]]));
+        } catch(e) {
+          console.warn('Merge ' + color + ' failed at ' + i + ':', e);
+        }
       }
       mergedByColor[color] = merged;
     });
 
-    // Серая зона — объединённая
+    if (mergedByColor[COLOR_BLUE] && mergedByColor[COLOR_RED]) {
+      var inter = null;
+      try {
+        inter = turf.intersect(mergedByColor[COLOR_BLUE], mergedByColor[COLOR_RED]);
+      } catch(e) {}
+      if (inter) {
+        var lastColor = strokes[strokes.length - 1].color;
+        var loserColor = (lastColor === COLOR_BLUE) ? COLOR_RED : COLOR_BLUE;
+        try {
+          var loserDiff = turf.difference(mergedByColor[loserColor], inter);
+          if (loserDiff) mergedByColor[loserColor] = loserDiff;
+        } catch(e) {
+          console.warn('Difference loser failed:', e);
+        }
+      }
+    }
+
     var grayParts = [];
     Object.keys(mergedByColor).forEach(function(color) {
       var shape = mergedByColor[color];
-      var radius = grayZoneKm;
-      strokes.forEach(function(s) {
-        if (s.color === color && s.radius > radius) radius = s.radius;
-      });
       try {
-        var buf = turf.buffer(shape, radius, { units: 'kilometers' });
+        var buf = turf.buffer(shape, grayZoneKm, { units: 'kilometers' });
         var ring = turf.difference(buf, shape);
         if (ring) grayParts.push(ring);
-      } catch(e) {}
+      } catch(e) {
+        console.warn('Buffer failed for ' + color + ':', e);
+      }
     });
 
     if (grayParts.length) {
       var grayMerged = grayParts[0];
       for (var j = 1; j < grayParts.length; j++) {
-        try { grayMerged = turf.union(grayMerged, grayParts[j]); } catch(e) {}
+        try {
+          grayMerged = turf.union(turf.featureCollection([grayMerged, grayParts[j]]));
+        } catch(e) {}
       }
-      // Вырезаем цветные заливки из серой
       Object.keys(mergedByColor).forEach(function(color) {
         try {
           var diff = turf.difference(grayMerged, mergedByColor[color]);
@@ -458,7 +478,6 @@ body{background:#000;color:#e2e8f0;overflow:hidden;height:100vh}
       window._layers.push(gl);
     }
 
-    // Цветные заливки — без обводки
     Object.keys(mergedByColor).forEach(function(color) {
       var fl = L.geoJSON(mergedByColor[color], {
         style: { color: color, weight: 0, fillColor: color, fillOpacity: 0.5 }
@@ -468,7 +487,7 @@ body{background:#000;color:#e2e8f0;overflow:hidden;height:100vh}
   }
 
   function undoLast() {
-    if (!strokes.length) return;
+    if (strokes.length <= 2) return;
     strokes.pop();
     redrawAll();
   }
